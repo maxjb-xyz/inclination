@@ -64,3 +64,26 @@ Single source of truth for build state. One entry per phase (and per significant
 - Plan: [`plans/phase-0-foundation-plan.md`](plans/phase-0-foundation-plan.md)
 - Branch `phase-0-foundation` → merged to `main` (local), tag `phase-0-complete`.
 - Commits: scaffold, infra/CI/e2e, review fixes, journal.
+
+---
+
+## Phase 1 — Auth & Workspaces
+
+**Status:** 🚧 in progress (started 2026-06-05) — branch `phase-1-auth-workspaces` (NOT merged; gate not yet met).
+
+**Plan:** [`plans/phase-1-auth-workspaces-plan.md`](plans/phase-1-auth-workspaces-plan.md) — full task breakdown A1–A11, dependency graph, contracts, and the spec "Done when" gate.
+
+**Done so far (committed, tested):**
+- **A1** — Prisma data model: `User`, `Workspace`, `WorkspaceMember`, `Invitation`, `RefreshToken`, `EmailVerificationToken`, `PasswordResetToken`, `WorkspaceRole` enum; migration `20260605231634_auth_workspaces`. db typecheck clean.
+- **A2** — `packages/shared/src/auth-schemas.ts`: Zod schemas + inferred types for register/login/verify/refresh/password-reset/profile/workspace/invite/accept; 8 unit tests green (12 shared tests total).
+
+**Remaining (resume here, in order):**
+- A3 config + global Prisma module + Zod validation pipe + Mail module (SMTP + in-memory capturing transport).
+- A4 PasswordService (argon2id) + TokenService (access JWT + rotating refresh w/ reuse-detection).
+- A5 AuthService + AuthController + JWT guard (register/verify/login/refresh/logout/reset) + throttler.
+- A6 Users profile/settings; A7 Workspaces + Invitations (+ role guard); A8 OIDC (in-process mock provider + service/controller).
+- A9 minimal web auth surface; A10 Testcontainers integration; A11 Playwright e2e gate; update `.env.example`/compose with JWT/OIDC/SMTP env and re-verify clean `docker compose up`.
+
+**Decisions recorded in plan (Risks/fallbacks):** in-process mock OIDC provider for tests; pluggable Mail transport with in-memory capture for tests; token-bearer API (CORS-locked) with refresh in body (HttpOnly-cookie refresh deferred to Phase 9); refresh-reuse → revoke entire chain.
+
+**Gate:** NOT yet satisfied — do not merge until "register → verify → login → create workspace → invite member → both log in; OIDC against test provider" passes at the e2e layer with `docker compose up` healthy.
