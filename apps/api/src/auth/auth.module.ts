@@ -5,6 +5,8 @@ import { AppConfig } from "../config/app-config";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtStrategy } from "./jwt.strategy";
+import { OidcController } from "./oidc.controller";
+import { OidcService } from "./oidc.service";
 import { PasswordService } from "./password.service";
 import { TokenService } from "./token.service";
 
@@ -19,8 +21,8 @@ import { TokenService } from "./token.service";
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, PasswordService, TokenService, JwtStrategy],
+  controllers: [AuthController, OidcController],
+  providers: [AuthService, PasswordService, TokenService, JwtStrategy, OidcService],
   exports: [AuthService, TokenService, PasswordService],
 })
 export class AuthModule {}
