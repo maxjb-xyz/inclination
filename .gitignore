@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# prisma generated client
+packages/db/generated/
+**/.prisma/
+
+# test / coverage
+coverage/
+playwright-report/
+test-results/
+.vitest/
+
+# editor / os
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# docker
+caddy_data/
+caddy_config/
