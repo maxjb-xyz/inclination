@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/.git
+**/playwright-report
+**/test-results
+**/*.log
+.env
+.env.*
+!.env.example
+caddy_data
+caddy_config

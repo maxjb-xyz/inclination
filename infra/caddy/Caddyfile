@@ -1,0 +1,32 @@
+# Phase 0 Caddyfile: HTTP only on :80 (automatic TLS is configured in Phase 9).
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	encode gzip
+
+	# API server (NestJS) — global prefix is /api (so /api/health, /api/ready).
+	handle /api/* {
+		reverse_proxy api:3001
+	}
+
+	# Sync server (Hocuspocus) websocket endpoint.
+	handle /collab* {
+		reverse_proxy sync:3002
+	}
+
+	# Sync server health, exposed through the single entrypoint: /sync/health ->
+	# sync :3002 /health (handle_path strips the /sync prefix).
+	handle_path /sync/* {
+		reverse_proxy sync:3002
+	}
+
+	# Single-page app: serve static build, fall back to index.html for routes.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
