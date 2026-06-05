@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import {
   BadRequestException,
   Injectable,
@@ -24,7 +25,20 @@ interface IdTokenClaims {
   email?: string;
   email_verified?: boolean;
   name?: string;
+  nonce?: string;
   iss: string;
+}
+
+interface OidcTransaction {
+  kind: "oidc_tx";
+  state: string;
+  nonce: string;
+}
+
+export interface BeginLoginResult {
+  url: string;
+  /** Signed, HttpOnly-cookie value binding the login to this browser. */
+  txToken: string;
 }
 
 @Injectable()
@@ -57,28 +71,43 @@ export class OidcService {
     return this.discovery;
   }
 
-  /** Build the provider authorization URL with a signed (stateless) state. */
-  async buildAuthorizationUrl(): Promise<string> {
+  /**
+   * Begin login: returns the provider authorization URL plus a signed
+   * transaction token (to be stored as an HttpOnly cookie) that binds `state`
+   * and `nonce` to this browser, defeating login-CSRF / forced-identity.
+   */
+  async beginLogin(): Promise<BeginLoginResult> {
     this.ensureEnabled();
     const disco = await this.getDiscovery();
-    const state = this.jwt.sign({ kind: "oidc_state" }, { expiresIn: 600 });
+    const state = randomBytes(16).toString("hex");
+    const nonce = randomBytes(16).toString("hex");
+    const tx: OidcTransaction = { kind: "oidc_tx", state, nonce };
+    const txToken = this.jwt.sign(tx, { expiresIn: 600 });
     const params = new URLSearchParams({
       client_id: this.config.oidcClientId,
       redirect_uri: this.config.oidcRedirectUri,
       response_type: "code",
       scope: "openid email profile",
       state,
+      nonce,
     });
-    return `${disco.authorization_endpoint}?${params.toString()}`;
+    return { url: `${disco.authorization_endpoint}?${params.toString()}`, txToken };
   }
 
-  private verifyState(state: string): void {
-    try {
-      const decoded = this.jwt.verify<{ kind?: string }>(state);
-      if (decoded.kind !== "oidc_state") throw new Error("bad state");
-    } catch {
-      throw new UnauthorizedException("Invalid OIDC state");
+  private readTransaction(txToken: string | undefined, stateFromQuery: string): OidcTransaction {
+    if (!txToken) {
+      throw new UnauthorizedException("Missing OIDC login cookie");
     }
+    let tx: OidcTransaction;
+    try {
+      tx = this.jwt.verify<OidcTransaction>(txToken);
+    } catch {
+      throw new UnauthorizedException("Invalid OIDC login cookie");
+    }
+    if (tx.kind !== "oidc_tx" || tx.state !== stateFromQuery) {
+      throw new UnauthorizedException("OIDC state mismatch");
+    }
+    return tx;
   }
 
   private async exchangeCode(code: string, tokenEndpoint: string): Promise<string> {
@@ -104,13 +133,19 @@ export class OidcService {
     return json.id_token;
   }
 
-  private async verifyIdToken(idToken: string, issuer: string): Promise<IdTokenClaims> {
+  private async verifyIdToken(
+    idToken: string,
+    issuer: string,
+    expectedNonce: string,
+  ): Promise<IdTokenClaims> {
     const decodedHeader = jwt.decode(idToken, { complete: true });
-    const kid = decodedHeader && typeof decodedHeader !== "string" ? decodedHeader.header.kid : undefined;
+    const kid =
+      decodedHeader && typeof decodedHeader !== "string" ? decodedHeader.header.kid : undefined;
     const signingKey = await this.jwks!.getSigningKey(kid);
     const publicKey = signingKey.getPublicKey();
+    let claims: IdTokenClaims;
     try {
-      return jwt.verify(idToken, publicKey, {
+      claims = jwt.verify(idToken, publicKey, {
         algorithms: ["RS256"],
         audience: this.config.oidcClientId,
         issuer,
@@ -118,21 +153,34 @@ export class OidcService {
     } catch {
       throw new UnauthorizedException("Invalid id_token");
     }
+    if (claims.nonce !== expectedNonce) {
+      throw new UnauthorizedException("OIDC nonce mismatch");
+    }
+    return claims;
   }
 
-  /** Exchange an authorization code for our own session, upserting the user. */
+  /**
+   * Complete login: validate the browser-bound transaction, exchange the code,
+   * verify the id_token (signature, issuer, audience, nonce), and upsert the
+   * user. Returns our own session.
+   */
   async handleCallback(
     code: string,
-    state: string,
+    stateFromQuery: string,
+    txToken: string | undefined,
   ): Promise<{ user: PublicUser; tokens: TokenPair }> {
     this.ensureEnabled();
-    this.verifyState(state);
+    const tx = this.readTransaction(txToken, stateFromQuery);
     const disco = await this.getDiscovery();
     const idToken = await this.exchangeCode(code, disco.token_endpoint);
-    const claims = await this.verifyIdToken(idToken, disco.issuer);
+    const claims = await this.verifyIdToken(idToken, disco.issuer, tx.nonce);
 
     if (!claims.email) {
       throw new UnauthorizedException("OIDC provider did not return an email");
+    }
+    // Only trust the email (and link by it) when the provider asserts it is verified.
+    if (claims.email_verified !== true) {
+      throw new UnauthorizedException("OIDC email is not verified by the provider");
     }
     const email = claims.email.toLowerCase();
     const user = await this.upsertUser(disco.issuer, claims.sub, email, claims.name ?? email);
@@ -146,12 +194,12 @@ export class OidcService {
     if (byOidc) {
       return this.prisma.user.update({
         where: { id: byOidc.id },
-        data: { email, emailVerifiedAt: byOidc.emailVerifiedAt ?? new Date() },
+        data: { emailVerifiedAt: byOidc.emailVerifiedAt ?? new Date() },
       });
     }
+    // Link to an existing local account by (verified) email, else create.
     const byEmail = await this.prisma.user.findUnique({ where: { email } });
     if (byEmail) {
-      // Link the OIDC identity to the existing local account.
       return this.prisma.user.update({
         where: { id: byEmail.id },
         data: {

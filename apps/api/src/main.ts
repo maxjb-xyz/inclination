@@ -12,6 +12,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   const config = app.get(AppConfig);
+  config.assertSecretsAreSafe();
   // Lock CORS to the configured origin (spec §9). Same-origin (Caddy) needs no
   // CORS, but a separate dev frontend origin does; credentials stay off (the
   // API is bearer-token, not cookie-session).

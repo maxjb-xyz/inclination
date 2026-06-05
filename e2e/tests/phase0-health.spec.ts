@@ -31,8 +31,9 @@ test("sync health and readiness pass through Caddy", async ({ request }) => {
   expect((await ready.json()).status).toBe("ok");
 });
 
-test("web SPA loads and shows live API health as ok", async ({ page }) => {
+test("web SPA loads and renders the app shell", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Inclination" })).toBeVisible();
-  await expect(page.getByTestId("api-status")).toHaveText("ok");
+  // Logged out, the auth panel is shown.
+  await expect(page.getByRole("button", { name: "Register" })).toBeVisible();
 });

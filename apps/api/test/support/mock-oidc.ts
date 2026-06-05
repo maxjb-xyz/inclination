@@ -40,7 +40,7 @@ export async function startMockOidc(): Promise<MockOidc> {
   const subject = "oidc-subject-123";
   const email = "oidc-user@example.com";
   const name = "OIDC User";
-  const codes = new Set<string>();
+  const codes = new Map<string, string>(); // code -> nonce
   let codeCounter = 0;
   let issuer = "http://127.0.0.1";
 
@@ -63,9 +63,10 @@ export async function startMockOidc(): Promise<MockOidc> {
     if (path === "/authorize") {
       const redirectUri = url.searchParams.get("redirect_uri");
       const state = url.searchParams.get("state") ?? "";
+      const nonce = url.searchParams.get("nonce") ?? "";
       if (!redirectUri) return sendJson(res, 400, { error: "missing redirect_uri" });
       const code = `code-${++codeCounter}`;
-      codes.add(code);
+      codes.set(code, nonce);
       const location = `${redirectUri}?code=${code}&state=${encodeURIComponent(state)}`;
       res.writeHead(302, { location });
       res.end();
@@ -78,8 +79,9 @@ export async function startMockOidc(): Promise<MockOidc> {
         if (!code || !codes.has(code)) {
           return sendJson(res, 400, { error: "invalid_grant" });
         }
+        const nonce = codes.get(code)!;
         codes.delete(code);
-        const idToken = jwt.sign({ email, email_verified: true, name }, privateKey, {
+        const idToken = jwt.sign({ email, email_verified: true, name, nonce }, privateKey, {
           algorithm: "RS256",
           keyid: kid,
           subject,

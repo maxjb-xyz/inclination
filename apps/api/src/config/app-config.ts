@@ -38,7 +38,26 @@ export class AppConfig {
   readonly mailFrom = envOrDefault("MAIL_FROM", "Inclination <no-reply@localhost>");
 
   // ── Misc ──
-  readonly isTest = envBool("IS_TEST", envOrDefault("NODE_ENV", "") === "test");
+  readonly nodeEnv = envOrDefault("NODE_ENV", "");
+  readonly isProduction = this.nodeEnv === "production";
+  readonly isTest = envBool("IS_TEST", this.nodeEnv === "test");
+
+  /** Secrets that must never be used in production. */
+  private static readonly WEAK_SECRETS = new Set(["", "dev_access_secret_change_me", "change-me"]);
+
+  /**
+   * Fail fast in production if the JWT signing secret was left at a known-weak
+   * default — a publicly-known key would allow forging access tokens for any
+   * user (spec §9: secrets only via environment).
+   */
+  assertSecretsAreSafe(): void {
+    if (this.isProduction && AppConfig.WEAK_SECRETS.has(this.jwtAccessSecret)) {
+      throw new Error(
+        "JWT_ACCESS_SECRET must be set to a strong, unique value in production " +
+          "(generate one with: openssl rand -base64 48).",
+      );
+    }
+  }
 
   private appBaseUrlOrDefault(): string {
     return envOrDefault("APP_BASE_URL", "http://localhost:8080");

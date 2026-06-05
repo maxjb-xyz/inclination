@@ -68,6 +68,7 @@ jobs:
       - name: Boot stack (with e2e mail catcher overlay)
         run: |
           cp .env.example .env
+          echo "JWT_ACCESS_SECRET=$(openssl rand -base64 48)" >> .env
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
       - name: Wait for healthy services
         run: |

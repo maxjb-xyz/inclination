@@ -160,11 +160,14 @@ describe("Auth & workspaces (integration)", () => {
     expect(after.body.map((w: { id: string }) => w.id)).toContain(workspaceId);
   });
 
-  it("logs in via OIDC against the test provider", async () => {
+  it("logs in via OIDC against the test provider (state+nonce bound)", async () => {
     const loginRes = await request(http).get("/api/auth/oidc/login");
     expect(loginRes.status).toBe(302);
     const authorizeUrl = loginRes.headers.location as string;
     expect(authorizeUrl).toContain(oidc.issuer);
+    // The login sets the browser-binding cookie.
+    const setCookie = (loginRes.headers["set-cookie"] as unknown as string[])[0]!;
+    const txCookie = setCookie.split(";")[0]!; // oidc_tx=<jwt>
 
     const authRes = await fetch(authorizeUrl, { redirect: "manual" });
     expect(authRes.status).toBe(302);
@@ -172,15 +175,32 @@ describe("Auth & workspaces (integration)", () => {
     const code = callbackUrl.searchParams.get("code")!;
     const state = callbackUrl.searchParams.get("state")!;
 
-    const cb = await request(http).get(
+    // Callback without the cookie is rejected (CSRF protection).
+    const noCookie = await request(http).get(
       `/api/auth/oidc/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
     );
-    expect(cb.status).toBe(200);
-    expect(cb.body.user.email).toBe(oidc.email);
-    expect(cb.body.tokens.accessToken).toBeTruthy();
+    expect(noCookie.status).toBe(401);
 
-    const me = await request(http).get("/api/auth/me").set("authorization", `Bearer ${cb.body.tokens.accessToken}`);
+    // Re-run the authorize step for a fresh code (the previous one was consumed).
+    const login2 = await request(http).get("/api/auth/oidc/login");
+    const txCookie2 = (login2.headers["set-cookie"] as unknown as string[])[0]!.split(";")[0]!;
+    const auth2 = await fetch(login2.headers.location as string, { redirect: "manual" });
+    const cb2Url = new URL(auth2.headers.get("location")!);
+    const code2 = cb2Url.searchParams.get("code")!;
+    const state2 = cb2Url.searchParams.get("state")!;
+
+    const cb = await request(http)
+      .get(`/api/auth/oidc/callback?code=${encodeURIComponent(code2)}&state=${encodeURIComponent(state2)}`)
+      .set("Cookie", txCookie2);
+    expect(cb.status).toBe(302);
+    const fragment = new URLSearchParams((cb.headers.location as string).split("#")[1]);
+    const accessToken = fragment.get("accessToken")!;
+    expect(accessToken).toBeTruthy();
+
+    const me = await request(http).get("/api/auth/me").set("authorization", `Bearer ${accessToken}`);
     expect(me.status).toBe(200);
     expect(me.body.email).toBe(oidc.email);
+    // Silence unused-var for the first (rejected) cookie capture.
+    expect(txCookie).toContain("oidc_tx=");
   });
 });
