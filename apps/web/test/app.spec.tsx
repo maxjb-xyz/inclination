@@ -15,9 +15,11 @@ describe("App", () => {
     );
   });
 
-  it("renders the product name", () => {
+  it("renders the product name", async () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "Inclination" })).toBeInTheDocument();
+    // Let the health-check effect settle so the state update is wrapped in act().
+    await waitFor(() => expect(screen.getByTestId("api-status")).toHaveTextContent("ok"));
   });
 
   it("reflects API health once the health check resolves", async () => {

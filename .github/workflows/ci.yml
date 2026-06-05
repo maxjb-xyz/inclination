@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 11.5.2
+  NODE_VERSION: 22
+
+jobs:
+  lint-typecheck-unit:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @inclination/db run generate
+      - run: pnpm --filter "./packages/*" run build
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  integration:
+    name: Integration tests (Testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @inclination/db run generate
+      - run: pnpm --filter "./packages/*" run build
+      # Docker is available on ubuntu-latest runners; Testcontainers uses it.
+      - run: pnpm test:integration
+
+  e2e-gate:
+    name: E2E phase gate (docker compose)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @inclination/e2e exec playwright install --with-deps chromium
+      - name: Boot stack
+        run: |
+          cp .env.example .env
+          docker compose up -d --build
+      - name: Wait for healthy services
+        run: |
+          for i in $(seq 1 60); do
+            api=$(docker inspect -f '{{.State.Health.Status}}' inclination-api-1 2>/dev/null || echo starting)
+            sync=$(docker inspect -f '{{.State.Health.Status}}' inclination-sync-1 2>/dev/null || echo starting)
+            echo "api=$api sync=$sync"
+            [ "$api" = healthy ] && [ "$sync" = healthy ] && exit 0
+            sleep 3
+          done
+          docker compose ps
+          docker compose logs --tail=100
+          exit 1
+      - name: Run Playwright gate
+        run: pnpm --filter @inclination/e2e run test
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

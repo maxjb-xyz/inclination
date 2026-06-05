@@ -1,0 +1,11 @@
+# Normalize line endings: LF in the repo for all text.
+* text=auto eol=lf
+
+# Binary / generated lockfiles keep LF.
+pnpm-lock.yaml text eol=lf
+
+# Shell scripts and Docker/Caddy configs MUST be LF (run inside Linux containers).
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+Caddyfile text eol=lf
