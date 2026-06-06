@@ -34,17 +34,28 @@ export class PagesService {
   }
 
   /**
-   * Loads the page (404 if missing) and asserts the caller may access it, using
-   * the SAME shared resolver the sync server uses (spec §9) so API and sync
-   * authorization cannot drift. `resolvePageAccess` returns null for both a
-   * missing page and a non-member; since `loadPage` already 404s on a missing
-   * page, a null here means "not a member" → 403 (preserving prior behavior).
+   * Loads the page (404 if missing) and asserts the caller may access it at the
+   * requested capability, using the SAME shared resolver the sync server uses
+   * (spec §9) so API and sync authorization cannot drift.
+   *
+   * `resolvePageAccess` returns null for both a missing page and no-access; since
+   * `loadPage` already 404s on a missing page, a null here means "no access" →
+   * 403. When `capability` is `"write"`, a reader/commenter (canRead but not
+   * canWrite) is also rejected — this is the Phase-6 fix for write endpoints that
+   * previously gated on access existence only.
    */
-  private async requirePageAccess(userId: string, id: string): Promise<Page> {
+  private async requirePageAccess(
+    userId: string,
+    id: string,
+    capability: "read" | "write" = "read",
+  ): Promise<Page> {
     const page = await this.loadPage(id);
     const access = await resolvePageAccess(this.prisma, userId, id);
     if (!access) {
-      throw new ForbiddenException("You are not a member of this workspace");
+      throw new ForbiddenException("You do not have access to this page");
+    }
+    if (capability === "write" && !access.canWrite) {
+      throw new ForbiddenException("You do not have permission to edit this page");
     }
     return page;
   }
@@ -128,7 +139,7 @@ export class PagesService {
   }
 
   async update(userId: string, id: string, input: UpdatePageInput) {
-    await this.requirePageAccess(userId, id);
+    await this.requirePageAccess(userId, id, "write");
     return this.prisma.page.update({
       where: { id },
       data: {
@@ -160,7 +171,7 @@ export class PagesService {
   }
 
   async move(userId: string, id: string, input: MovePageInput) {
-    const page = await this.requirePageAccess(userId, id);
+    const page = await this.requirePageAccess(userId, id, "write");
     const newParentId = input.parentId !== undefined ? input.parentId : page.parentId;
 
     if (newParentId) {
@@ -206,7 +217,7 @@ export class PagesService {
 
   /** Soft-delete: archive the page and cascade archived state to all descendants. */
   async archive(userId: string, id: string) {
-    const page = await this.requirePageAccess(userId, id);
+    const page = await this.requirePageAccess(userId, id, "write");
     const ids = await this.subtreeIds(page.id);
     const now = new Date();
     await this.prisma.page.updateMany({
@@ -218,7 +229,7 @@ export class PagesService {
 
   /** Restore: clear archivedAt on the page, its descendants, and any archived ancestors. */
   async restore(userId: string, id: string) {
-    const page = await this.requirePageAccess(userId, id);
+    const page = await this.requirePageAccess(userId, id, "write");
     const ids = await this.subtreeIds(page.id);
 
     // Un-archive archived ancestors so the restored page is reachable in the tree.
@@ -246,7 +257,7 @@ export class PagesService {
   }
 
   async saveContent(userId: string, id: string, input: SaveContentInput) {
-    await this.requirePageAccess(userId, id);
+    await this.requirePageAccess(userId, id, "write");
     const doc = input.doc as Prisma.InputJsonValue;
     const content = await this.prisma.pageContent.upsert({
       where: { pageId: id },
@@ -264,7 +275,7 @@ export class PagesService {
    * the stored set ends up exactly matching the (filtered) desired set.
    */
   async setReferences(userId: string, id: string, input: SetReferencesInput) {
-    const page = await this.requirePageAccess(userId, id);
+    const page = await this.requirePageAccess(userId, id, "write");
 
     // Restrict requested ids to existing, non-archived pages in this workspace.
     const candidates = input.pageIds.length

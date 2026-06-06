@@ -24,13 +24,26 @@ import { PrismaService } from "../prisma/prisma.service";
 export class DatabaseAccessService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Authorize access to a container page (404 if missing, 403 if not a member). */
-  private async authorize(userId: string, containerPageId: string): Promise<void> {
+  /**
+   * Authorize access to a container page at the requested capability (404 is the
+   * caller's responsibility; this only authorizes). `read` requires `canRead`;
+   * `write` requires `canWrite` (a read/comment-only grant is rejected on
+   * mutations — the Phase-6 fix). Authorizes through the SAME shared resolver as
+   * the rest of the API/sync (spec §9).
+   */
+  private async authorize(
+    userId: string,
+    containerPageId: string,
+    capability: "read" | "write" = "read",
+  ): Promise<void> {
     const access = await resolvePageAccess(this.prisma, userId, containerPageId);
     if (!access) {
-      // resolvePageAccess returns null for both a missing page and a non-member.
-      // The caller has already established the page exists, so null = not a member.
-      throw new ForbiddenException("You are not a member of this workspace");
+      // resolvePageAccess returns null for both a missing page and no-access. The
+      // caller has already established the page exists, so null = no access.
+      throw new ForbiddenException("You do not have access to this database");
+    }
+    if (capability === "write" && !access.canWrite) {
+      throw new ForbiddenException("You do not have permission to edit this database");
     }
   }
 
@@ -38,13 +51,14 @@ export class DatabaseAccessService {
   async requireDatabase(
     userId: string,
     databaseId: string,
+    capability: "read" | "write" = "read",
   ): Promise<{ database: Database; page: Page }> {
     const database = await this.prisma.database.findUnique({
       where: { pageId: databaseId },
       include: { page: true },
     });
     if (!database) throw new NotFoundException("Database not found");
-    await this.authorize(userId, database.pageId);
+    await this.authorize(userId, database.pageId, capability);
     return { database, page: database.page };
   }
 
@@ -52,13 +66,14 @@ export class DatabaseAccessService {
   async requireProperty(
     userId: string,
     propertyId: string,
+    capability: "read" | "write" = "read",
   ): Promise<{ property: Property; database: Database; page: Page }> {
     const property = await this.prisma.property.findUnique({
       where: { id: propertyId },
       include: { database: { include: { page: true } } },
     });
     if (!property) throw new NotFoundException("Property not found");
-    await this.authorize(userId, property.database.pageId);
+    await this.authorize(userId, property.database.pageId, capability);
     return { property, database: property.database, page: property.database.page };
   }
 
@@ -66,13 +81,14 @@ export class DatabaseAccessService {
   async requireView(
     userId: string,
     viewId: string,
+    capability: "read" | "write" = "read",
   ): Promise<{ view: View; database: Database; page: Page }> {
     const view = await this.prisma.view.findUnique({
       where: { id: viewId },
       include: { database: { include: { page: true } } },
     });
     if (!view) throw new NotFoundException("View not found");
-    await this.authorize(userId, view.database.pageId);
+    await this.authorize(userId, view.database.pageId, capability);
     return { view, database: view.database, page: view.database.page };
   }
 
@@ -83,6 +99,7 @@ export class DatabaseAccessService {
   async requireRow(
     userId: string,
     rowPageId: string,
+    capability: "read" | "write" = "read",
   ): Promise<{ row: Page; database: Database; container: Page }> {
     const row = await this.prisma.page.findUnique({ where: { id: rowPageId } });
     if (!row || row.type !== "row") throw new NotFoundException("Row not found");
@@ -92,7 +109,7 @@ export class DatabaseAccessService {
       where: { pageId: container.id },
     });
     if (!database) throw new NotFoundException("Row's database not found");
-    await this.authorize(userId, container.id);
+    await this.authorize(userId, container.id, capability);
     return { row, database, container };
   }
 

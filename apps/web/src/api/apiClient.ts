@@ -50,7 +50,11 @@ async function parseError(res: Response): Promise<string> {
  */
 export function createApiClient(
   store: SessionStore,
-  fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis),
+  // Resolve `globalThis.fetch` lazily at call time rather than binding it once
+  // at construction. Binding eagerly captured whatever `fetch` existed when the
+  // singleton was imported, which made it impossible for tests to swap in a
+  // mock via `vi.stubGlobal("fetch", …)` after import.
+  fetchImpl: typeof fetch = (...args) => globalThis.fetch(...args),
 ) {
   // Single-flight guard: when several requests 401 concurrently (parallel
   // queries against an expired access token), they must share ONE /auth/refresh

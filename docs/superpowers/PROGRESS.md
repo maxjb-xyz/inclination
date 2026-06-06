@@ -10,7 +10,7 @@ Single source of truth for build state. One entry per phase (and per significant
 - [x] **Phase 3 — Real-time collaboration**
 - [x] **Phase 4 — Full block editor**
 - [x] **Phase 5 — Databases (collections)**
-- [ ] **Phase 6 — Comments, sharing & permissions**
+- [x] **Phase 6 — Comments, sharing & permissions**
 - [ ] **Phase 7 — Search, files & version history**
 - [ ] **Phase 8 — Publishing, import/export & synced blocks**
 - [ ] **Phase 9 — Polish & self-host hardening**
@@ -211,3 +211,33 @@ Single source of truth for build state. One entry per phase (and per significant
 
 **References**
 - Branch `phase-5-databases` → merged to `main` (local), tag `phase-5-complete`.
+
+---
+
+## Phase 6 — Comments, Sharing & Permissions
+
+**Status:** ✅ complete (2026-06-06) — built via subagents (resolver/comments/sharing+web/e2e), orchestrator verified each gate.
+
+**Plan:** [`plans/phase-6-comments-sharing-plan.md`](plans/phase-6-comments-sharing-plan.md)
+
+**What was built**
+- **Permission resolver (the crux):** upgraded the shared `resolvePageAccess` (used by BOTH API and sync) to spec §5 — nearest-ancestor explicit grant wins, else workspace-role default (owner/admin→full, member→edit, **guest→none, grant-only**), returning `{role, canRead, canComment, canWrite, canShare}`. Single `permission.findMany` over the ancestor chain; cycle-guarded. Wired `canWrite` into all page + database mutations and sync `readOnly` (closing the Phase-3 follow-up); `canComment` into comments; `canShare` into sharing.
+- Models: `Permission`, `Comment`, `Notification` + migration.
+- API: comments (page + inline-anchored, threads, reply, resolve, delete) with mention/reply → `Notification`s for users with access; notifications (list/unread-count/read/read-all); sharing (list/upsert/delete page grants, guest `share-invite` by email, `GET /pages/:id/access`).
+- Web: share dialog, comments panel (threads, @-mention composer, resolve, inline anchors), notifications bell/inbox, and capability-aware UI (read-only editor when `!canWrite`).
+
+**Gate evidence** ("guest sees only that subtree — at API AND sync; comments/@-mentions notify the right users")
+- Lint + typecheck clean. Unit: resolver 21 + api + web 98 + db-engine 109. Integration (Testcontainers, run sequentially to avoid container contention): 8 files / 62 tests incl. comments + sharing. E2E (Playwright, `rtk proxy`): 12 total incl. phase6 — guest scoped at the **API** layer (200 on granted page + descendant, 403 on others, read-only) and the **sync** layer (real Hocuspocus provider: `page:B` rejected, `page:A` accepted), plus comment @-mention creates the guest's notification. Clean `docker compose up` healthy.
+
+**Decisions / deviations**
+- Guest-to-page invite = create a `guest` WorkspaceMember + a page `Permission` (subtree access via the resolver). New (no-account) invitees get a guest workspace invite and are re-shared on signup (no user-less grants).
+- Integration suites now run sequentially (`fileParallelism:false`) — a fix for Testcontainers resource contention surfaced this phase.
+- Adversarial review found no critical/material; resolver verified against all escalation vectors.
+
+**Follow-ups (deferred — recorded for Phase 9 / a guest-scoping pass)**
+- **Guest metadata scoping:** `listTree`/`searchMentionable`/`listMembers` gate on workspace membership, so a page-invited guest can enumerate all page titles/icons + member names/emails (not content). Filter these through `resolvePageAccess` for guest-role members.
+- `share-invite` upserts a page grant even for an existing full-access admin — could *downgrade* them on that page if a weaker role is given (explicit beats default); skip the grant when the target already resolves ≥ requested role.
+- Drop the unused `archivedAt` select in the resolver (or enforce an archived policy); optional realtime push for notifications.
+
+**References**
+- Branch `phase-6-comments-sharing` → merged to `main` (local), tag `phase-6-complete`.

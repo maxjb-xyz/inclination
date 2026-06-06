@@ -47,7 +47,7 @@ export class PropertiesService {
    * one transaction.
    */
   async create(userId: string, databaseId: string, input: CreatePropertyInput) {
-    const { database } = await this.access.requireDatabase(userId, databaseId);
+    const { database } = await this.access.requireDatabase(userId, databaseId, "write");
     const config = this.assertConfig(input.type, input.config);
 
     // Relation target validation + paired-property resolution.
@@ -59,8 +59,9 @@ export class PropertiesService {
       if (!target) {
         throw new BadRequestException("relation targetDatabaseId is not a database");
       }
-      // The caller must be able to access the target database too.
-      await this.access.requireDatabase(userId, relCfg.targetDatabaseId);
+      // The caller must be able to write the target database too (creating a
+      // relation mirrors a paired property onto it).
+      await this.access.requireDatabase(userId, relCfg.targetDatabaseId, "write");
     }
 
     const order = input.order ?? (await this.nextOrder(databaseId));
@@ -176,7 +177,7 @@ export class PropertiesService {
 
   /** Update a property's name/config/order/isPrimary (type is fixed once set). */
   async update(userId: string, propertyId: string, input: UpdatePropertyInput) {
-    const { property, database } = await this.access.requireProperty(userId, propertyId);
+    const { property, database } = await this.access.requireProperty(userId, propertyId, "write");
 
     if (input.type !== undefined && input.type !== property.type) {
       throw new BadRequestException(
@@ -219,7 +220,7 @@ export class PropertiesService {
 
   /** Reorder all properties of a database to match the given id sequence. */
   async reorder(userId: string, databaseId: string, input: ReorderPropertiesInput) {
-    await this.access.requireDatabase(userId, databaseId);
+    await this.access.requireDatabase(userId, databaseId, "write");
     const existing = await this.prisma.property.findMany({
       where: { databaseId },
       select: { id: true },
@@ -252,7 +253,7 @@ export class PropertiesService {
 
   /** Delete a property. Cells/relation links cascade. A primary cannot be deleted. */
   async remove(userId: string, propertyId: string) {
-    const { property, database } = await this.access.requireProperty(userId, propertyId);
+    const { property, database } = await this.access.requireProperty(userId, propertyId, "write");
     if (property.isPrimary) {
       throw new BadRequestException("The primary property cannot be deleted");
     }

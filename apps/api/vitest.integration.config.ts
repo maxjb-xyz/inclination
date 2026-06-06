@@ -18,5 +18,9 @@ export default defineConfig({
     include: ["test/**/*.integration.spec.ts"],
     testTimeout: 180_000,
     hookTimeout: 180_000,
+    // Each integration file spins its own Testcontainers (Postgres/MinIO). Run
+    // them one file at a time so we don't start many containers at once and
+    // exhaust Docker resources (which surfaced as "container is not running").
+    fileParallelism: false,
   },
 });
