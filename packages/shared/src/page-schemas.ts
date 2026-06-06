@@ -33,3 +33,15 @@ export const saveContentSchema = z.object({
   doc: z.record(z.unknown()),
 });
 export type SaveContentInput = z.infer<typeof saveContentSchema>;
+
+// Phase 4 — backlinks (spec §7). The editor recomputes the set of pages this
+// page references (from pageLink / page-mention nodes) and PUTs it. Ids are
+// deduped here so the server receives a clean set; a generous cap bounds the
+// payload (a single doc realistically references far fewer pages).
+export const setReferencesSchema = z.object({
+  pageIds: z
+    .array(z.string().uuid())
+    .max(500)
+    .transform((ids) => Array.from(new Set(ids))),
+});
+export type SetReferencesInput = z.infer<typeof setReferencesSchema>;

@@ -39,3 +39,32 @@ export interface PageContent {
 export interface PageNode extends Page {
   children: PageNode[];
 }
+
+/** A workspace member surfaced by the `@`-mention search. */
+export interface MentionableUser {
+  id: string;
+  displayName: string;
+  email: string;
+  kind: "user";
+}
+
+/** A page surfaced by the `@`/`[[` search. */
+export interface MentionablePage {
+  id: string;
+  title: string;
+  icon: string | null;
+  kind: "page";
+}
+
+/** Result of `GET /workspaces/:wsId/search/mentionable`. */
+export interface MentionableResult {
+  users: MentionableUser[];
+  pages: MentionablePage[];
+}
+
+/** A backlink entry from `GET /pages/:id/backlinks`. */
+export interface Backlink {
+  id: string;
+  title: string;
+  icon: string | null;
+}

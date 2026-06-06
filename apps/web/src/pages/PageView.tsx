@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Page } from "../api/types";
 import { Editor } from "./Editor";
-import { usePage, useUpdatePage } from "./queries";
+import { BacklinksPanel } from "./BacklinksPanel";
+import { useBacklinks, usePage, useUpdatePage } from "./queries";
 import { useAuthStore } from "../auth/authStore";
 import { useCollabSession } from "../collab/useCollabSession";
 import { colorForUserId } from "../collab/color";
@@ -15,6 +16,7 @@ export interface PageViewProps {
 export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): React.ReactElement {
   const pageQuery = usePage(pageId);
   const updatePage = useUpdatePage(workspaceId);
+  const backlinksQuery = useBacklinks(pageId);
 
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.tokens?.accessToken ?? "");
@@ -113,7 +115,20 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
         {peers > 0 ? ` · ${peers} other${peers === 1 ? "" : "s"} here` : ""}
       </div>
 
-      {session ? <Editor session={session} user={collabUser} /> : null}
+      {session ? (
+        <Editor
+          session={session}
+          user={collabUser}
+          workspaceId={workspaceId}
+          onOpenPage={onNavigate}
+        />
+      ) : null}
+
+      <BacklinksPanel
+        backlinks={backlinksQuery.data ?? []}
+        onOpenPage={onNavigate}
+        loading={backlinksQuery.isLoading}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@inclination/shared": resolve(__dirname, "../../packages/shared/src/index.ts"),
+      "@inclination/editor": resolve(__dirname, "../../packages/editor/src/index.ts"),
     },
   },
   server: {

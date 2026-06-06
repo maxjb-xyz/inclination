@@ -16,6 +16,7 @@ export const queryKeys = {
   trash: (wsId: string) => ["pages", wsId, "trash"] as const,
   page: (id: string) => ["page", id] as const,
   content: (id: string) => ["page", id, "content"] as const,
+  backlinks: (id: string) => ["page", id, "backlinks"] as const,
 };
 
 function invalidateWorkspace(qc: QueryClient, wsId: string): void {
@@ -63,6 +64,14 @@ export function usePageContent(id: string | null) {
   return useQuery({
     queryKey: id ? queryKeys.content(id) : ["page", "none", "content"],
     queryFn: () => api.getContent(id as string),
+    enabled: Boolean(id),
+  });
+}
+
+export function useBacklinks(id: string | null) {
+  return useQuery({
+    queryKey: id ? queryKeys.backlinks(id) : ["page", "none", "backlinks"],
+    queryFn: () => api.getBacklinks(id as string),
     enabled: Boolean(id),
   });
 }

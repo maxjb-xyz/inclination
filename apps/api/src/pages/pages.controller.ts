@@ -1,12 +1,25 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import {
   createPageSchema,
   movePageSchema,
   saveContentSchema,
+  setReferencesSchema,
   updatePageSchema,
   type CreatePageInput,
   type MovePageInput,
   type SaveContentInput,
+  type SetReferencesInput,
   type UpdatePageInput,
 } from "@inclination/shared";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
@@ -38,6 +51,16 @@ export class WorkspacePagesController {
   @Get("trash")
   trash(@CurrentUser() user: PublicUser, @Param("wsId") wsId: string) {
     return this.pages.listTrash(user.id, wsId);
+  }
+
+  /** Autocomplete for `@`-mentions and page links: members + pages by title. */
+  @Get("search/mentionable")
+  mentionable(
+    @CurrentUser() user: PublicUser,
+    @Param("wsId") wsId: string,
+    @Query("q") q?: string,
+  ) {
+    return this.pages.searchMentionable(user.id, wsId, q ?? "");
   }
 }
 
@@ -92,5 +115,19 @@ export class PagesController {
     @Body(new ZodValidationPipe(saveContentSchema)) body: SaveContentInput,
   ) {
     return this.pages.saveContent(user.id, id, body);
+  }
+
+  @Put(":id/references")
+  setReferences(
+    @CurrentUser() user: PublicUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(setReferencesSchema)) body: SetReferencesInput,
+  ) {
+    return this.pages.setReferences(user.id, id, body);
+  }
+
+  @Get(":id/backlinks")
+  backlinks(@CurrentUser() user: PublicUser, @Param("id") id: string) {
+    return this.pages.backlinks(user.id, id);
   }
 }

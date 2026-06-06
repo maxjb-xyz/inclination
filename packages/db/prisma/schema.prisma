@@ -159,8 +159,30 @@ model Page {
   content   PageContent?
   snapshots PageSnapshot[]
 
+  // Phase 4 — backlinks (spec §7). A page references other pages via pageLink /
+  // page-mention nodes; the editor PUTs the set and the target shows backlinks.
+  outgoingRefs PageReference[] @relation("PageOutgoingRefs")
+  incomingRefs PageReference[] @relation("PageIncomingRefs")
+
   @@index([workspaceId, parentId, archivedAt])
   @@index([parentId, sortKey])
+}
+
+// Phase 4 — Page references / backlinks (spec §7). One row per (fromPage →
+// toPage) directed reference. The web app recomputes the outgoing set on edit
+// and the target page lists incoming references as "backlinks". Both sides
+// cascade-delete with their page so references never dangle.
+model PageReference {
+  id         String   @id @default(uuid())
+  fromPageId String
+  toPageId   String
+  createdAt  DateTime @default(now())
+
+  fromPage Page @relation("PageOutgoingRefs", fields: [fromPageId], references: [id], onDelete: Cascade)
+  toPage   Page @relation("PageIncomingRefs", fields: [toPageId], references: [id], onDelete: Cascade)
+
+  @@unique([fromPageId, toPageId])
+  @@index([toPageId])
 }
 
 // Phase 2 stored the editor doc as ProseMirror/Tiptap JSON (`doc`). Phase 3 makes

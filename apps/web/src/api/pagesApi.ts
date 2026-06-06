@@ -4,7 +4,14 @@ import type {
   UpdatePageInput,
 } from "@inclination/shared";
 import type { ApiClient } from "./apiClient";
-import type { Page, PageContent, PageWithBreadcrumbs, Workspace } from "./types";
+import type {
+  Backlink,
+  MentionableResult,
+  Page,
+  PageContent,
+  PageWithBreadcrumbs,
+  Workspace,
+} from "./types";
 
 /** Workspace + page REST surface, parameterised by an ApiClient for testability. */
 export function createPagesApi(client: ApiClient) {
@@ -32,6 +39,15 @@ export function createPagesApi(client: ApiClient) {
     getContent: (id: string) => client.get<PageContent>(`/pages/${id}/content`),
     saveContent: (id: string, doc: Record<string, unknown>) =>
       client.put<PageContent>(`/pages/${id}/content`, { doc }),
+
+    // References / backlinks (Phase 4)
+    searchMentionable: (wsId: string, q: string) =>
+      client.get<MentionableResult>(
+        `/workspaces/${wsId}/search/mentionable?q=${encodeURIComponent(q)}`,
+      ),
+    putReferences: (id: string, pageIds: string[]) =>
+      client.put<{ count: number }>(`/pages/${id}/references`, { pageIds }),
+    getBacklinks: (id: string) => client.get<Backlink[]>(`/pages/${id}/backlinks`),
   };
 }
 
