@@ -316,6 +316,22 @@ importers:
         specifier: ^3.0.2
         version: 3.2.6(@types/node@22.19.19)(jiti@2.7.0)(jsdom@26.1.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
 
+  packages/db-engine:
+    dependencies:
+      '@inclination/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.19.19
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.2
+        version: 3.2.6(@types/node@22.19.19)(jiti@2.7.0)(jsdom@26.1.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0)
+
   packages/editor:
     dependencies:
       '@tiptap/core':
