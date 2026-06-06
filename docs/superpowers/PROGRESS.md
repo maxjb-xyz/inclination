@@ -7,7 +7,7 @@ Single source of truth for build state. One entry per phase (and per significant
 - [x] **Phase 0 — Foundation** — monorepo, Docker Compose, CI, `/health` + `/ready`
 - [x] **Phase 1 — Auth & workspaces**
 - [x] **Phase 2 — Page tree & single-user editor**
-- [ ] **Phase 3 — Real-time collaboration**
+- [x] **Phase 3 — Real-time collaboration**
 - [ ] **Phase 4 — Full block editor**
 - [ ] **Phase 5 — Databases (collections)**
 - [ ] **Phase 6 — Comments, sharing & permissions**
@@ -123,3 +123,33 @@ Single source of truth for build state. One entry per phase (and per significant
 
 **References**
 - Branch `phase-2-page-tree-editor` → merged to `main` (local), tag `phase-2-complete`.
+
+---
+
+## Phase 3 — Real-Time Collaboration
+
+**Status:** ✅ complete (2026-06-06) — built via subagents (backend/web/e2e), orchestrator verified each gate.
+
+**Plan:** [`plans/phase-3-realtime-collab-plan.md`](plans/phase-3-realtime-collab-plan.md)
+
+**What was built**
+- DB: `PageContent.ydocState` (Yjs binary) + `PageSnapshot` model + migration; shared `resolvePageAccess(prisma,userId,pageId)` in `packages/db` used by BOTH API and sync (spec §9 invariant).
+- Sync (`apps/sync`): real Hocuspocus + `@hocuspocus/extension-database` persisting Yjs updates to `ydocState`; `onAuthenticate` verifies the JWT signature, parses `page:{id}`, enforces per-page access via the shared resolver, sets `connection.readOnly` when `!canWrite`; throttled `PageSnapshot` groundwork (failure-isolated); production secret guard.
+- Web: collaborative Tiptap editor over `Y.Doc` + `HocuspocusProvider` (token-auth at `/collab`, doc `page:{id}`) + `y-indexeddb` offline + `Collaboration`/`CollaborationCursor` for merged edits and live remote carets; presence/connection indicator; per-page session lifecycle; dropped REST body autosave.
+
+**Gate evidence** ("two browsers edit simultaneously with merged edits + live cursors; offline edits sync on reconnect")
+- Lint + typecheck clean. Unit: shared 22 + db + api 30 + sync 20 + web (9 files). Integration (Testcontainers): sync persistence/auth 4 + api 17. E2E (Playwright, **two browser contexts** through the real stack): 7 total incl. phase3-collab — bidirectional merged edits, visible remote caret, and offline-partition→reconnect convergence (non-tautological; verified via `rtk proxy` to bypass cached output). Clean `docker compose up` healthy.
+
+**Decisions / deviations**
+- Phase-2 `PageContent.doc` JSON not migrated into Yjs (greenfield, no prod data); collab docs start fresh.
+- `@hocuspocus/*` pinned to v2.15.x (matches server) — v3/v4 are type-incompatible.
+- **Critical bug caught by the e2e gate:** `docker-compose.yml` didn't pass `JWT_ACCESS_SECRET` to the sync service → sync used the dev default while the API signed with the real secret → every collab connection rejected. Fixed in compose; added a sync production secret guard so this fails fast. (This is the core value of gating through the real stack.)
+- Raised register throttle 5→20/min (5/min blocked shared-NAT signups and flaked the serial e2e).
+- Independent review found no critical/material issues.
+
+**Follow-ups (deferred)**
+- **Phase 6:** API write endpoints (`pages.saveContent`/`update`) currently gate on access existence, not `access.canWrite` — tighten to honor read-only roles when Permission grants land (sync already honors `canWrite`). Add a regression test then.
+- Archived-page access policy (`resolvePageAccess` selects `archivedAt` but doesn't enforce); token-refresh on live ws reconnect; gate the UI "Connected" indicator on a successful authenticated/synced event.
+
+**References**
+- Branch `phase-3-realtime-collab` → merged to `main` (local), tag `phase-3-complete`.
