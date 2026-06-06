@@ -476,3 +476,35 @@ model Attachment {
   @@index([pageId])
   @@index([workspaceId])
 }
+
+// ─────────────────────────────────────────────────────────────
+// Phase 9 — Favorites & recents (spec §5)
+// ─────────────────────────────────────────────────────────────
+
+// A user's starred page (spec §5 sidebar "Favorites"). Per-user; `order` is the
+// manual sort position within the user's favorites (reorder writes it). No FK to
+// User/Page here because the resolver/service access-gates every read and lists
+// drop pages the caller can no longer access — a stale row is harmless and the
+// page-delete cascade is not required for correctness. Keyed by (user, page) so
+// favoriting is idempotent.
+model Favorite {
+  userId    String
+  pageId    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@id([userId, pageId])
+  @@index([userId])
+}
+
+// A page the user recently visited (spec §5 sidebar "Recent"). `visitedAt` is
+// bumped on each visit (upsert). Per-user, keyed by (user, page); the composite
+// index serves the "my recents, newest first" query.
+model RecentlyVisited {
+  userId    String
+  pageId    String
+  visitedAt DateTime @default(now())
+
+  @@id([userId, pageId])
+  @@index([userId, visitedAt])
+}

@@ -11,3 +11,4 @@ export * from "./file-schemas";
 export * from "./snapshot-schemas";
 export * from "./publishing-schemas";
 export * from "./import-export-schemas";
+export * from "./favorites-schemas";

@@ -10,6 +10,7 @@ import type { Page } from "@inclination/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { InvitationsService } from "../workspaces/invitations.service";
+import { shouldWriteGrant } from "./share-decision";
 
 /**
  * Phase 6 T3 — page sharing / permission grants (spec §5/§6).
@@ -225,6 +226,32 @@ export class SharingService {
             invitedById: userId,
           },
         });
+      }
+
+      // No-downgrade guard (Phase 6 follow-up): if the target already resolves
+      // to >= the requested role on this page via the workspace default (e.g. an
+      // existing owner/admin → full, member → edit) and has NO explicit grant on
+      // this page, writing a weaker explicit grant would downgrade them. Skip the
+      // write and the notification in that case.
+      const existingGrant = await this.prisma.permission.findUnique({
+        where: {
+          pageId_subjectType_subjectId: { pageId, subjectType: "user", subjectId: target.id },
+        },
+      });
+      const currentAccess = await resolvePageAccess(this.prisma, target.id, pageId);
+      const write = shouldWriteGrant(
+        currentAccess?.role ?? null,
+        input.role,
+        existingGrant !== null,
+      );
+
+      if (!write) {
+        return {
+          kind: "already-has-access" as const,
+          userId: target.id,
+          role: currentAccess?.role ?? input.role,
+          guest: !member,
+        };
       }
 
       const grant = await this.prisma.permission.upsert({

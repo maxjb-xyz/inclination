@@ -106,13 +106,42 @@ export class PagesService {
     });
   }
 
-  /** Flat list of non-archived pages for the sidebar; client builds the tree. */
+  /**
+   * Flat list of non-archived pages for the sidebar; client builds the tree.
+   *
+   * Guest-role members do NOT get the whole workspace tree (which would leak
+   * every page title — Phase 6 follow-up). For a guest we resolve access per page
+   * via the shared `resolvePageAccess` and return only the pages they can read
+   * (their granted subtrees). Owners/admins/members keep the full, un-filtered
+   * list (their workspace default already grants them everything).
+   */
   async listTree(userId: string, workspaceId: string) {
-    await this.workspaces.requireMember(userId, workspaceId);
-    return this.prisma.page.findMany({
+    const member = await this.workspaces.requireMember(userId, workspaceId);
+    const pages = await this.prisma.page.findMany({
       where: { workspaceId, archivedAt: null },
       orderBy: [{ parentId: "asc" }, { sortKey: "asc" }],
     });
+    if (member.role !== "guest") return pages;
+    return this.filterReadablePages(userId, pages);
+  }
+
+  /**
+   * Keep only the pages the user can READ via the shared resolver. Used to scope
+   * guest-visible lists so a guest never enumerates pages outside their grants.
+   * Resolves access per page in parallel; order is preserved.
+   */
+  private async filterReadablePages<T extends { id: string }>(
+    userId: string,
+    pages: T[],
+  ): Promise<T[]> {
+    if (pages.length === 0) return pages;
+    const flags = await Promise.all(
+      pages.map(async (p) => {
+        const access = await resolvePageAccess(this.prisma, userId, p.id);
+        return access?.canRead === true;
+      }),
+    );
+    return pages.filter((_, i) => flags[i]);
   }
 
   /** Archived pages for the trash view. */
@@ -344,39 +373,55 @@ export class PagesService {
    * plus members. Authorized to workspace members.
    */
   async searchMentionable(userId: string, workspaceId: string, q: string) {
-    await this.workspaces.requireMember(userId, workspaceId);
+    const member = await this.workspaces.requireMember(userId, workspaceId);
+    const isGuest = member.role === "guest";
     const term = q.trim();
     const LIMIT = 10;
 
-    const members = await this.prisma.workspaceMember.findMany({
-      where: {
-        workspaceId,
-        ...(term
-          ? {
-              user: {
-                OR: [
-                  { displayName: { contains: term, mode: "insensitive" } },
-                  { email: { contains: term, mode: "insensitive" } },
-                ],
-              },
-            }
-          : {}),
-      },
-      include: { user: true },
-      orderBy: { joinedAt: "asc" },
-      take: LIMIT,
-    });
+    // Guests must not enumerate the workspace member directory (Phase 6
+    // follow-up): they may only `@`-mention themselves. Non-guests see the
+    // matching members as before.
+    const members = isGuest
+      ? await this.prisma.workspaceMember.findMany({
+          where: { workspaceId, userId },
+          include: { user: true },
+          take: LIMIT,
+        })
+      : await this.prisma.workspaceMember.findMany({
+          where: {
+            workspaceId,
+            ...(term
+              ? {
+                  user: {
+                    OR: [
+                      { displayName: { contains: term, mode: "insensitive" } },
+                      { email: { contains: term, mode: "insensitive" } },
+                    ],
+                  },
+                }
+              : {}),
+          },
+          include: { user: true },
+          orderBy: { joinedAt: "asc" },
+          take: LIMIT,
+        });
 
-    const pages = await this.prisma.page.findMany({
+    // A guest must not enumerate page titles outside their grants: for guests we
+    // over-fetch then filter to readable pages via the resolver (Phase 6
+    // follow-up). Non-guests see all matching workspace pages as before.
+    const rawPages = await this.prisma.page.findMany({
       where: {
         workspaceId,
         archivedAt: null,
         ...(term ? { title: { contains: term, mode: "insensitive" } } : {}),
       },
       orderBy: { updatedAt: "desc" },
-      take: LIMIT,
+      take: isGuest ? LIMIT * 5 : LIMIT,
       select: { id: true, title: true, icon: true },
     });
+    const pages = isGuest
+      ? (await this.filterReadablePages(userId, rawPages)).slice(0, LIMIT)
+      : rawPages;
 
     return {
       users: members.map((m) => ({

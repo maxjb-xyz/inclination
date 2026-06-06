@@ -17,6 +17,7 @@ import type { Page } from "../api/types";
 import { buildTree } from "./buildTree";
 import { flattenTree, type FlatItem } from "./flattenTree";
 import { projectMove } from "./projectMove";
+import { FavoritesSection, RecentsSection } from "./SidebarFavorites";
 
 export interface SidebarProps {
   pages: Page[];
@@ -187,6 +188,8 @@ export function Sidebar({
           onChange={(e) => void handleImportFile(e)}
         />
       </div>
+      <FavoritesSection onSelect={onSelect} />
+      <RecentsSection onSelect={onSelect} />
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           <ul className="page-list">

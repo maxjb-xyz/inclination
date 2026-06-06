@@ -34,6 +34,9 @@ export class AuthController {
 
   @Post("verify-email")
   @HttpCode(200)
+  // Token-guessing guard: a verify token is high-entropy, but rate-limit
+  // attempts anyway (10/min/IP).
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async verifyEmail(@Body(new ZodValidationPipe(verifyEmailSchema)) body: VerifyEmailInput) {
     const user = await this.auth.verifyEmail(body.token);
     return { user };
@@ -48,6 +51,9 @@ export class AuthController {
 
   @Post("refresh")
   @HttpCode(200)
+  // Refresh-token rotation endpoint: rate-limit to blunt brute-force/replay
+  // attempts (30/min/IP — generous for legitimate silent refreshes).
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async refresh(@Body(new ZodValidationPipe(refreshSchema)) body: RefreshInput) {
     const tokens = await this.auth.refresh(body.refreshToken);
     return { tokens };
@@ -55,6 +61,7 @@ export class AuthController {
 
   @Post("logout")
   @HttpCode(204)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async logout(@Body(new ZodValidationPipe(refreshSchema)) body: RefreshInput): Promise<void> {
     await this.auth.logout(body.refreshToken);
   }
@@ -71,6 +78,8 @@ export class AuthController {
 
   @Post("password-reset/confirm")
   @HttpCode(204)
+  // Limit reset-token guessing attempts (10/min/IP).
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async confirmReset(
     @Body(new ZodValidationPipe(passwordResetConfirmSchema)) body: PasswordResetConfirmInput,
   ): Promise<void> {

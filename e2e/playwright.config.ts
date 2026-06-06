@@ -16,7 +16,13 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: process.env.BASE_URL ?? "http://localhost:8080",
+    // HTTPS-first (Phase 9): Caddy serves TLS on https://localhost:8443 with a
+    // self-signed ("Caddy internal" CA) cert and redirects HTTP->HTTPS. The whole
+    // suite runs over https/wss; `ignoreHTTPSErrors` accepts the self-signed
+    // localhost cert (test-only allowance — the cert is real TLS, just not
+    // publicly trusted). Override the target with BASE_URL.
+    baseURL: process.env.BASE_URL ?? "https://localhost:8443",
+    ignoreHTTPSErrors: true,
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],

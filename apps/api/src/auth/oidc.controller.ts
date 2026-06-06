@@ -1,4 +1,5 @@
 import { Controller, Get, Query, Req, Res } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { AppConfig } from "../config/app-config";
 import { OidcService } from "./oidc.service";
 
@@ -40,6 +41,8 @@ export class OidcController {
 
   /** Begin OIDC login: set the browser-binding cookie and redirect to the IdP. */
   @Get("login")
+  // Rate-limit login starts so the IdP redirect can't be hammered (20/min/IP).
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async login(@Res() res: HttpResponse): Promise<void> {
     const { url, txToken } = await this.oidc.beginLogin();
     res.cookie(TX_COOKIE, txToken, {
@@ -54,6 +57,8 @@ export class OidcController {
 
   /** Provider redirect target: validate, exchange, and hand the SPA a session. */
   @Get("callback")
+  // Limit code/state guessing on the callback (20/min/IP).
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async callback(
     @Query("code") code: string,
     @Query("state") state: string,

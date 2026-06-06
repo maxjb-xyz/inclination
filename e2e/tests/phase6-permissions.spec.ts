@@ -17,7 +17,7 @@ import { authHeader, registerVerifyLogin } from "./helpers";
  *
  * We then assert guest scoping at:
  *   - the API layer (GET/PATCH against A, A1, B; GET /access),
- *   - the SYNC layer (open a Hocuspocus websocket to ws://…/collab for `page:B`
+ *   - the SYNC layer (open a Hocuspocus websocket to wss://…/collab for `page:B`
  *     and `page:A` with the guest's token; B must be rejected, A accepted), and
  *   - notifications (owner @-mentions the guest in a comment on A → guest's
  *     /api/notifications gains a `mention` referencing A; unread-count ≥ 1).
@@ -36,6 +36,24 @@ import { authHeader, registerVerifyLogin } from "./helpers";
 
 // REST setup + the websocket handshake go through Caddy; give them headroom.
 const SYNC_TIMEOUT = 20_000;
+
+/**
+ * HTTPS-first (Phase 9): the sync server is reached over wss through Caddy (TLS
+ * on https://localhost:8443). Derive the collab ws(s) URL from BASE_URL so the
+ * gate can retarget the stack; default to wss://localhost:8443/collab.
+ */
+const COLLAB_WS_URL = (() => {
+  const base = process.env.BASE_URL ?? "https://localhost:8443";
+  return `${base.replace(/^http/, "ws").replace(/\/$/, "")}/collab`;
+})();
+
+// TEST-ONLY: the Node `ws` client this spec uses to open the wss collab
+// connection rejects the self-signed "Caddy internal" localhost cert by default.
+// Accept it for this test run only. This mirrors Playwright's `ignoreHTTPSErrors`
+// for the browser side and is NOT a backend change — the TLS itself is real.
+if (COLLAB_WS_URL.startsWith("wss://")) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 
 /** Loaded once: the web app's HocuspocusProvider bundle (no e2e dep needed). */
 type ProviderModule = {
@@ -69,7 +87,11 @@ async function collabConnect(
 ): Promise<ConnectOutcome> {
   return new Promise<ConnectOutcome>((resolve) => {
     const socket = new provider.HocuspocusProviderWebsocket({
-      url: "ws://localhost:8080/collab",
+      // HTTPS-first (Phase 9): the sync server is reached over wss through Caddy
+      // (TLS on 8443). Derived from BASE_URL so the gate can retarget the stack;
+      // the Node `ws` client accepts the self-signed localhost cert because the
+      // suite sets NODE_TLS_REJECT_UNAUTHORIZED=0 (test-only; see file header).
+      url: COLLAB_WS_URL,
     });
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | undefined = undefined;

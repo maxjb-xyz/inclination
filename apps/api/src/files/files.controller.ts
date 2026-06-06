@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { presignUploadSchema, type PresignUploadInput } from "@inclination/shared";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -13,6 +14,9 @@ export class UploadsController {
   constructor(private readonly files: FilesService) {}
 
   @Post("uploads/presign")
+  // Presigned-URL minting is cheap to request but enables direct-to-MinIO
+  // uploads; cap issuance per user/IP (60/min) to limit abuse.
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   presign(
     @CurrentUser() user: PublicUser,
     @Param("wsId") wsId: string,

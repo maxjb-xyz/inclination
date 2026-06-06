@@ -1,17 +1,44 @@
-# Phase 0 Caddyfile: HTTP only on :80 (automatic TLS is configured in Phase 9).
+# Phase 9 Caddyfile: serves the app over HTTPS, parameterized by APP_DOMAIN.
+#
+# TLS mode is chosen by two env vars (substituted at load time):
+#   APP_DOMAIN         — the site address Caddy serves (default: localhost).
+#   CADDY_TLS_INTERNAL — when "1", use Caddy's internal CA (self-signed) so HTTPS
+#                        works on localhost / behind no public DNS. When unset/0,
+#                        Caddy's automatic HTTPS (Let's Encrypt / ZeroSSL) applies
+#                        for the real domain in APP_DOMAIN.
+#
+# How the switch works without two files: we always `import` the snippet named by
+# {$CADDY_TLS_SNIPPET}. setup-env / compose set it to "tls_internal" for localhost
+# (which expands `tls internal`) or "tls_auto" for a real domain (a no-op, letting
+# Caddy's default automatic HTTPS take over). Both snippets are defined below.
 {
 	admin off
-	auto_https off
+	# Automatic HTTPS stays ON (the default). For a real APP_DOMAIN, Caddy obtains
+	# a publicly-trusted cert automatically and redirects HTTP->HTTPS. For
+	# localhost, the tls_internal snippet swaps in the internal CA.
+	email {$ACME_EMAIL:admin@localhost}
 }
 
-:80 {
+# --- TLS mode snippets (selected per-environment via {$CADDY_TLS_SNIPPET}) ------
+# Local / gate: self-signed cert from Caddy's internal CA. HTTPS works on
+# https://localhost without external DNS or ACME.
+(tls_internal) {
+	tls internal
+}
+
+# Real domain: no explicit tls directive — Caddy's automatic HTTPS manages a
+# publicly-trusted certificate for {$APP_DOMAIN}. This snippet is intentionally
+# empty so the import resolves cleanly.
+(tls_auto) {
+}
+
+# --- Shared route set (identical to the previous HTTP config) -------------------
+(app_routes) {
 	encode gzip
 
 	# API server (NestJS) — global prefix is /api (so /api/health, /api/ready).
-	# This also routes the databases realtime websocket: the socket.io gateway is
-	# mounted at path /api/realtime, so it falls under this handle. Caddy's
-	# reverse_proxy forwards Connection/Upgrade headers automatically, so the
-	# websocket upgrade reaches the API with no extra rule.
+	# Also routes the databases realtime websocket (socket.io at /api/realtime):
+	# reverse_proxy forwards Connection/Upgrade headers, so the upgrade reaches it.
 	handle /api/* {
 		reverse_proxy api:3001
 	}
@@ -22,18 +49,13 @@
 	}
 
 	# MinIO object storage, exposed through the single entrypoint so presigned
-	# upload (PUT) / download (GET) URLs are reachable from the browser. The API
-	# signs presigned URLs against S3_PUBLIC_ENDPOINT=http://<host>:<port> with
-	# path-style addressing, so the bucket name is the FIRST path segment
-	# (`/inclination/...`). We forward that path UNCHANGED to MinIO (no prefix
-	# strip) so the request path matches what was signed — SigV4 signs the path,
-	# so any rewrite here would invalidate the signature.
+	# upload (PUT) / download (GET) URLs are reachable from the browser. The path
+	# (/inclination/...) is forwarded UNCHANGED so the SigV4-signed path matches.
 	handle /inclination/* {
 		reverse_proxy minio:9000
 	}
 
-	# Sync server health, exposed through the single entrypoint: /sync/health ->
-	# sync :3002 /health (handle_path strips the /sync prefix).
+	# Sync server health: /sync/health -> sync :3002 /health (prefix stripped).
 	handle_path /sync/* {
 		reverse_proxy sync:3002
 	}
@@ -44,4 +66,9 @@
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+{$APP_DOMAIN:localhost} {
+	import {$CADDY_TLS_SNIPPET:tls_internal}
+	import app_routes
 }
