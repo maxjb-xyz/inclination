@@ -11,7 +11,7 @@ Single source of truth for build state. One entry per phase (and per significant
 - [x] **Phase 4 — Full block editor**
 - [x] **Phase 5 — Databases (collections)**
 - [x] **Phase 6 — Comments, sharing & permissions**
-- [ ] **Phase 7 — Search, files & version history**
+- [x] **Phase 7 — Search, files & version history**
 - [ ] **Phase 8 — Publishing, import/export & synced blocks**
 - [ ] **Phase 9 — Polish & self-host hardening**
 
@@ -241,3 +241,33 @@ Single source of truth for build state. One entry per phase (and per significant
 
 **References**
 - Branch `phase-6-comments-sharing` → merged to `main` (local), tag `phase-6-complete`.
+
+---
+
+## Phase 7 — Search, Files & Version History
+
+**Status:** ✅ complete (2026-06-06) — built via subagents; T1 was interrupted by a session limit and finished by a continuation subagent; the adversarial review was done inline by the orchestrator (transient API 529s blocked subagent dispatch).
+
+**Plan:** [`plans/phase-7-search-files-versions-plan.md`](plans/phase-7-search-files-versions-plan.md)
+
+**What was built**
+- **Search:** `SearchIndex` (Postgres `tsvector` via BEFORE-trigger + GIN index) maintained from the **sync server's Yjs→text extraction** on store + page title/cell text from the API. `GET /workspaces/:wsId/search?q=` — parameterized FTS (`websearch_to_tsquery`, `ts_rank`, `ts_headline` snippet with `[[ ]]` markers), workspace-scoped + membership-required, **per-row access-filtered** via the shared resolver.
+- **Files:** `Attachment` model; `POST /workspaces/:wsId/uploads/presign` (membership + canWrite-when-paged; mime allowlist + 25 MiB cap; workspace-scoped uuid objectKey; path-safe filename) → presigned PUT; `GET /attachments/:id` → presigned GET, IDOR-safe. Presigned URLs signed against a **browser-reachable `S3_PUBLIC_ENDPOINT`** routed to MinIO through Caddy `/inclination/*` (SigV4 signs host+path; the internal `minio:9000` host is unreachable from the browser).
+- **Version history:** `Snapshots` module — list/preview (Yjs→plaintext)/manual-create/restore; restore safety-snapshots the current state then replaces `PageContent.ydocState` (live clients pick it up on reload). Capability-gated, cross-page-`snapId`-safe.
+- **Web:** ⌘K command palette over search (snippet highlights, nav, quick actions); editor image/file/video upload (presign→PUT→resolve, survives reload via stored `attachmentId` + fresh presigned URL); version-history panel (list/save/preview/restore, canWrite-gated).
+
+**Gate evidence** ("search finds a typed phrase; uploaded image renders + survives reload; a prior version can be previewed and restored")
+- Lint + typecheck clean. Unit: api 83 + web 116 + sync 20 + db-engine 109. Integration (Testcontainers Postgres + **real MinIO**, sequential): api 79 incl. 17 new (search access-filtering, presign + full PUT→GET byte round-trip, bad-mime/oversize 400, IDOR 403/404, snapshot create/restore). E2E (Playwright, real stack, `rtk proxy`): **15** total incl. phase7 — search via index+palette, image upload renders + survives reload (MinIO through Caddy), version preview + restore. Clean `docker compose up` healthy.
+
+**Decisions / deviations**
+- The MinIO presign-host fix (`S3_PUBLIC_ENDPOINT` + Caddy `/inclination/*`, no path rewrite) was required for the upload gate in the real stack — found by the e2e subagent.
+- Snapshot preview returns plaintext (`decoded:false`); rich PM-JSON preview needs the editor schema (web-only) — deferred.
+- Phase-7 review performed inline by the orchestrator (read search/files/snapshots services directly) due to API overload; same dimensions covered, no critical/material found.
+
+**Follow-ups (deferred)**
+- Search per-row `resolvePageAccess` loop (≤200) — cache/batch the resolver per request for large workspaces.
+- Caddy `/inclination/*` hardcodes the default bucket name; parameterize if `MINIO_BUCKET` changes; consider rate-limiting the public object route (Phase 9).
+- Live-restore (push restored state to connected clients without reload); richer snapshot preview; storage readiness probe could `HeadBucket` the real bucket.
+
+**References**
+- Branch `phase-7-search-files-versions` → merged to `main` (local), tag `phase-7-complete`.
