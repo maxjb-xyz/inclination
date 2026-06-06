@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Editor as TiptapEditor } from "@tiptap/core";
 import type { Page } from "../api/types";
 import type { BlockAnchor } from "@inclination/shared";
 import { Editor, type InlineCommentAnchor } from "./Editor";
+import { PublishDialog } from "../publish/PublishDialog";
+import { apiClient } from "../api/apiClient";
+import { createPublishingApi } from "../api/publishingApi";
+import { downloadMarkdown } from "../publish/download";
 import { BacklinksPanel } from "./BacklinksPanel";
 import { VersionHistoryPanel } from "./VersionHistoryPanel";
 import { useBacklinks, usePage, useUpdatePage } from "./queries";
@@ -13,6 +18,8 @@ import { usePageAccess, useCreateComment } from "../collab/collabQueries";
 import { ShareDialog } from "../collab/ShareDialog";
 import { CommentsPanel } from "../collab/CommentsPanel";
 import { CommentComposer } from "../collab/CommentComposer";
+
+const publishingApi = createPublishingApi(apiClient);
 
 export interface PageViewProps {
   workspaceId: string;
@@ -44,8 +51,11 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   const [icon, setIcon] = useState("");
   const [cover, setCover] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // The live editor instance, captured for HTML serialization on publish.
+  const editorRef = useRef<TiptapEditor | null>(null);
   const [focusThreadId, setFocusThreadId] = useState<string | null>(null);
   // A pending inline-anchor: when set, an anchored composer is shown.
   const [pendingAnchor, setPendingAnchor] = useState<InlineCommentAnchor | null>(null);
@@ -86,6 +96,17 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
     setCommentsOpen(true);
   }, []);
 
+  const getHtml = useCallback((): string => editorRef.current?.getHTML() ?? "", []);
+
+  const handleEditorReady = useCallback((e: TiptapEditor | null) => {
+    editorRef.current = e;
+  }, []);
+
+  const onExport = useCallback(async () => {
+    const { filename, markdown } = await publishingApi.exportMarkdown(pageId);
+    downloadMarkdown(filename, markdown);
+  }, [pageId]);
+
   if (pageQuery.isLoading) {
     return <div className="page-view">Loading…</div>;
   }
@@ -111,6 +132,24 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
       >
         🕑 History
       </button>
+      <button
+        type="button"
+        className="page-action"
+        data-testid="export-markdown"
+        onClick={() => void onExport()}
+      >
+        ⬇ Export
+      </button>
+      {canShare ? (
+        <button
+          type="button"
+          className="page-action"
+          data-testid="open-publish"
+          onClick={() => setPublishOpen(true)}
+        >
+          🌐 Publish
+        </button>
+      ) : null}
       {canShare ? (
         <button
           type="button"
@@ -123,6 +162,16 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
       ) : null}
     </div>
   );
+
+  const publishDialog =
+    publishOpen && canShare ? (
+      <PublishDialog
+        pageId={pageId}
+        title={title}
+        getHtml={getHtml}
+        onClose={() => setPublishOpen(false)}
+      />
+    ) : null;
 
   // A database page renders its collection UI in place of the collab body.
   if (page.type === "database") {
@@ -161,6 +210,7 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
         {shareOpen ? (
           <ShareDialog pageId={pageId} workspaceId={workspaceId} onClose={() => setShareOpen(false)} />
         ) : null}
+        {publishDialog}
         {commentsOpen ? (
           <CommentsPanel
             pageId={pageId}
@@ -238,6 +288,8 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
           onOpenPage={onNavigate}
           editable={canWrite}
           onCommentOnSelection={canComment ? onCommentOnSelection : undefined}
+          token={accessToken}
+          onEditorReady={handleEditorReady}
         />
       ) : null}
 
@@ -258,6 +310,8 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
       {shareOpen ? (
         <ShareDialog pageId={pageId} workspaceId={workspaceId} onClose={() => setShareOpen(false)} />
       ) : null}
+
+      {publishDialog}
 
       {commentsOpen ? (
         <CommentsPanel

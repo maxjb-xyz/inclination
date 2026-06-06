@@ -5,12 +5,13 @@ import { getPrisma } from "@inclination/db";
 import { WebSocketServer } from "ws";
 import { liveness, readiness } from "./health.js";
 import {
-  authenticatePage,
-  fetchYdocState,
+  authenticateDocument,
+  fetchDocumentState,
   indexPageBody,
+  isSyncedDocument,
   jwtAccessSecret,
   maybeWriteSnapshot,
-  storeYdocState,
+  storeDocumentState,
 } from "./collab.js";
 
 export interface SyncServer {
@@ -37,7 +38,9 @@ export function createSyncServer(): SyncServer {
 
   const hocuspocus = Hocuspocus.configure({
     async onAuthenticate({ token, documentName, connection }) {
-      const result = await authenticatePage({ prisma, secret }, token, documentName);
+      // Routes on the document-name prefix: `page:{id}` → per-page authz,
+      // `synced:{id}` → synced-block workspace-membership authz (spec §6/§9).
+      const result = await authenticateDocument({ prisma, secret }, token, documentName);
       // Read-only connections may sync but cannot push updates (no edit access).
       if (result.readOnly) {
         connection.readOnly = true;
@@ -46,9 +49,11 @@ export function createSyncServer(): SyncServer {
     },
     extensions: [
       new Database({
-        fetch: ({ documentName }) => fetchYdocState(prisma, documentName),
+        fetch: ({ documentName }) => fetchDocumentState(prisma, documentName),
         store: async ({ documentName, state, context }) => {
-          await storeYdocState(prisma, documentName, state);
+          await storeDocumentState(prisma, documentName, state);
+          // Synced blocks are their own docs (no page snapshot / search index).
+          if (isSyncedDocument(documentName)) return;
           // Snapshot groundwork: best-effort, throttled, never breaks the store.
           try {
             const authorId =

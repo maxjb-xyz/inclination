@@ -16,6 +16,7 @@ import { SearchModule } from "./search/search.module";
 import { FilesModule } from "./files/files.module";
 import { SnapshotsModule } from "./snapshots/snapshots.module";
 import { SharingModule } from "./sharing/sharing.module";
+import { PublishingModule } from "./publishing/publishing.module";
 import { PrismaService } from "./prisma/prisma.service";
 import { StorageService } from "./storage/storage.service";
 import { UsersModule } from "./users/users.module";
@@ -38,6 +39,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     SearchModule,
     FilesModule,
     SnapshotsModule,
+    PublishingModule,
   ],
   controllers: [HealthController],
   providers: [

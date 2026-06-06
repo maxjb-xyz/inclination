@@ -40,6 +40,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
     onArchive: vi.fn(),
     onMove: vi.fn(),
     onOpenTrash: vi.fn(),
+    onImport: vi.fn(),
     ...overrides,
   };
   render(<Sidebar {...props} />);

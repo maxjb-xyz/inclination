@@ -21,6 +21,13 @@ export const WEB_SLASH_ITEMS: SlashMenuItem[] = [
     keywords: ["database", "table", "collection", "inline", "db"],
     command: (editor) => editor.chain().focus().setDatabaseView().run(),
   },
+  {
+    id: "syncedBlock",
+    title: "Synced block",
+    description: "Reusable content that stays in sync everywhere it's embedded.",
+    keywords: ["synced", "sync", "reusable", "mirror", "shared"],
+    command: (editor) => editor.chain().focus().setSyncedBlock().run(),
+  },
 ];
 
 /** Filter the merged shared + web slash registry by a query. */

@@ -1,16 +1,18 @@
 import "katex/dist/katex.min.css";
 import "highlight.js/styles/github.css";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import type { CollabSession } from "../collab/session";
 import { apiClient } from "../api/apiClient";
 import { createPagesApi } from "../api/pagesApi";
+import { createPublishingApi } from "../api/publishingApi";
 import { buildWebExtensions } from "../editor/extensions";
 import { BlockHandle } from "../editor/BlockHandle";
 import { OpenPageContext, type OpenPageHandler } from "../editor/openPageContext";
 import { DatabaseEditorContext } from "../editor/databaseContext";
+import { SyncedBlockEditorContext } from "../editor/syncedBlockContext";
 import { UploadEditorContext } from "../editor/uploadContext";
 import { createDbApi } from "../databases/dbApi";
 import {
@@ -21,6 +23,7 @@ import { useReferenceSync } from "../editor/useReferenceSync";
 
 const pagesApi = createPagesApi(apiClient);
 const dbApi = createDbApi(apiClient);
+const publishingApi = createPublishingApi(apiClient);
 
 export interface CollabUser {
   /** Display name shown on the remote caret label. */
@@ -54,6 +57,16 @@ export interface EditorProps {
   editable?: boolean;
   /** Invoked when the user clicks "Comment" over a non-empty text selection. */
   onCommentOnSelection?: (anchor: InlineCommentAnchor) => void;
+  /**
+   * Access token for nested synced-block collaboration sessions (`synced:{id}`).
+   * Defaults to "" — synced blocks then render but cannot open a live session.
+   */
+  token?: string;
+  /**
+   * Receives the live Tiptap editor instance once built (and null on unmount).
+   * The page uses it to serialize the doc to HTML for publishing.
+   */
+  onEditorReady?: (editor: ReturnType<typeof useEditor>) => void;
 }
 
 /**
@@ -78,6 +91,8 @@ export function Editor({
   onOpenPage,
   editable = true,
   onCommentOnSelection,
+  token = "",
+  onEditorReady,
 }: EditorProps): React.ReactElement {
   const { doc, provider } = session;
   const [selection, setSelection] = useState<InlineCommentAnchor | null>(null);
@@ -136,6 +151,13 @@ export function Editor({
   // Sync referenced page ids (backlinks) to the API on debounced doc changes.
   useReferenceSync(editor, session.pageId, (id, ids) => pagesApi.putReferences(id, ids));
 
+  // Surface the editor instance to the page (used to serialize HTML to publish).
+  // Re-runs whenever the editor is rebuilt; clears on unmount.
+  useEffect(() => {
+    onEditorReady?.(editor);
+    return () => onEditorReady?.(null);
+  }, [editor, onEditorReady]);
+
   // Context for inline database blocks: create a new database parented under
   // this page, returning its id for the node to render.
   const databaseContext = useMemo(
@@ -157,9 +179,26 @@ export function Editor({
     [workspaceId, session.pageId],
   );
 
+  // Context for the synced-block NodeView: create one on demand + the token/user
+  // it needs to open the nested `synced:{id}` collaboration session.
+  const syncedBlockContext = useMemo(
+    () => ({
+      workspaceId,
+      token,
+      userName: user.name,
+      userColor: user.color,
+      createSyncedBlock: async (): Promise<string> => {
+        const block = await publishingApi.createSyncedBlock(workspaceIdRef.current);
+        return block.id;
+      },
+    }),
+    [workspaceId, token, user.name, user.color],
+  );
+
   return (
     <OpenPageContext.Provider value={onOpenPage}>
       <DatabaseEditorContext.Provider value={databaseContext}>
+       <SyncedBlockEditorContext.Provider value={syncedBlockContext}>
        <UploadEditorContext.Provider value={uploadContext}>
         <div className="editor" data-testid="editor">
           {editor && editable ? <BlockHandle editor={editor} /> : null}
@@ -180,6 +219,7 @@ export function Editor({
           <EditorContent editor={editor} />
         </div>
        </UploadEditorContext.Provider>
+       </SyncedBlockEditorContext.Provider>
       </DatabaseEditorContext.Provider>
     </OpenPageContext.Provider>
   );

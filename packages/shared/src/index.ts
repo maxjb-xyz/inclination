@@ -9,3 +9,5 @@ export * from "./database-schemas";
 export * from "./search-schemas";
 export * from "./file-schemas";
 export * from "./snapshot-schemas";
+export * from "./publishing-schemas";
+export * from "./import-export-schemas";

@@ -9,6 +9,8 @@ import { PageLinkView } from "./PageLinkView";
 import { SlashMenu } from "./slashSuggestion";
 import { DatabaseViewNode } from "./databaseNode";
 import { DatabaseNodeView } from "./DatabaseNodeView";
+import { SyncedBlockNode } from "./syncedBlockNode";
+import { SyncedBlockView } from "./SyncedBlockView";
 
 /** Node names that get a rich React NodeView in the web app. */
 const MEDIA_NODES = new Set(["fileBlock", "videoBlock", "bookmark", "embed"]);
@@ -82,5 +84,11 @@ export function buildWebExtensions(opts: BuildBlockExtensionsOptions = {}): AnyE
     addNodeView: () => ReactNodeViewRenderer(DatabaseNodeView),
   });
 
-  return [...withNodeViews, databaseNode, SlashMenu];
+  // The synced block is web-only (it mounts a nested collaborative editor bound
+  // to the block's own `synced:{id}` Yjs doc), so it is added here.
+  const syncedBlockNode = SyncedBlockNode.extend({
+    addNodeView: () => ReactNodeViewRenderer(SyncedBlockView),
+  });
+
+  return [...withNodeViews, databaseNode, syncedBlockNode, SlashMenu];
 }

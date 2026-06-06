@@ -12,7 +12,7 @@ Single source of truth for build state. One entry per phase (and per significant
 - [x] **Phase 5 — Databases (collections)**
 - [x] **Phase 6 — Comments, sharing & permissions**
 - [x] **Phase 7 — Search, files & version history**
-- [ ] **Phase 8 — Publishing, import/export & synced blocks**
+- [x] **Phase 8 — Publishing, import/export & synced blocks**
 - [ ] **Phase 9 — Polish & self-host hardening**
 
 ## Environment (verified 2026-06-05)
@@ -271,3 +271,32 @@ Single source of truth for build state. One entry per phase (and per significant
 
 **References**
 - Branch `phase-7-search-files-versions` → merged to `main` (local), tag `phase-7-complete`.
+
+---
+
+## Phase 8 — Publishing, Import/Export & Synced Blocks
+
+**Status:** ✅ complete (2026-06-06) — built via subagents (one T1 retry after a transient 529); orchestrator verified each gate.
+
+**Plan:** [`plans/phase-8-publishing-import-synced-plan.md`](plans/phase-8-publishing-import-synced-plan.md)
+
+**What was built**
+- DB: `PublicShare` (slug, published, includeSubpages, allowDuplicate, publishedHtml/Title) + `SyncedBlock` (own Yjs doc) + migration.
+- Publishing: publish/unpublish (canShare) storing a client-rendered HTML snapshot + unique slug; **unauthenticated `GET /api/public/:slug`** serving only published content (no leak; includeSubpages lists only published descendants).
+- Import/Export: PM-JSON↔Markdown serializer/parser in `@inclination/editor`; `GET /pages/:id/export/markdown` (canRead) + `POST /workspaces/:wsId/import/markdown` (member, splits multi-H1 into a page tree). markdown-it with `html:false`.
+- Synced blocks: API create/get + sync server serves `synced:{id}` Yjs docs (JWT + workspace-membership auth, persisted to `SyncedBlock.ydocState`); `page:{id}` unchanged.
+- Web: publish dialog + **logged-out `/public/:slug` route** (rendered before the auth gate) with **DOMPurify** sanitization; markdown import (→ tree)/export (download); synced-block NodeView mounting a nested collaborative editor on `synced:{id}`.
+
+**Gate evidence** ("publish → public URL viewable logged out; Markdown imports into a page tree; synced block edit propagates")
+- Lint + typecheck clean. Unit: api 90 + web 139 + editor 42 + sync 29. Integration (Testcontainers): api 91 incl. publishing/import/synced + sync 5. E2E (Playwright, real stack, `rtk proxy`): **18** total incl. phase8 — published page viewable in a **fresh no-auth browser context**, multi-H1 import → sidebar tree, synced-block edit propagates across two contexts. Clean `docker compose up` healthy.
+
+**Decisions / deviations**
+- Publishing stores a client-rendered HTML snapshot (re-publish to refresh); live public pages = follow-up.
+- Synced-block UI only mints new ids; cross-view propagation proven via two contexts on the same page (same `synced:{id}` doc).
+- Adversarial review found **2 CRITICAL XSS bypasses** in the hand-rolled public-HTML sanitizer (SVG/MathML namespace confusion; unfiltered style/SMIL attrs). **Fixed by replacing it with DOMPurify** (allowlist tags/attrs, http/https/mailto only, style forbidden, svg/math dropped) + 14 XSS regression vectors; re-verified (e2e 18/18). A synced-block e2e flake (second-websocket timing) was fixed with timeout headroom.
+
+**Follow-ups (deferred)**
+- MF2: server-side sanitize `publishedHtml` at publish time (defense-in-depth) + a CSP header on the public route; live public pages; an "embed existing synced block id" affordance; Caddy already proxies `/public/*` via `/api/*`.
+
+**References**
+- Branch `phase-8-publishing-import-synced` → merged to `main` (local), tag `phase-8-complete`.

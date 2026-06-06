@@ -13,6 +13,9 @@ import { extractPlainTextFromUpdate } from "./extract.js";
 /** Yjs document names are `page:{pageId}`. */
 const DOC_NAME_PREFIX = "page:";
 
+/** Synced-block Yjs document names are `synced:{syncedBlockId}` (spec §6). */
+const SYNCED_DOC_NAME_PREFIX = "synced:";
+
 /** Default access-token secret; mirrors apps/api AppConfig for local/test boots. */
 export const DEFAULT_JWT_ACCESS_SECRET = "dev_access_secret_change_me";
 
@@ -53,6 +56,21 @@ export function documentNameToPageId(documentName: string): string | null {
 /** Build the document name for a page id (kept here so the convention has one home). */
 export function pageIdToDocumentName(pageId: string): string {
   return `${DOC_NAME_PREFIX}${pageId}`;
+}
+
+/**
+ * Parse the synced-block id out of a document name. Returns null for anything
+ * that is not exactly `synced:{nonEmptyId}` so malformed names are rejected.
+ */
+export function documentNameToSyncedId(documentName: string): string | null {
+  if (!documentName.startsWith(SYNCED_DOC_NAME_PREFIX)) return null;
+  const id = documentName.slice(SYNCED_DOC_NAME_PREFIX.length);
+  return id.length > 0 ? id : null;
+}
+
+/** Build the document name for a synced-block id. */
+export function syncedIdToDocumentName(syncedId: string): string {
+  return `${SYNCED_DOC_NAME_PREFIX}${syncedId}`;
 }
 
 export interface AuthResult {
@@ -109,6 +127,99 @@ export async function authenticatePage(
 }
 
 /**
+ * Minimal Prisma surface for synced-block authorization: look up the block's
+ * workspace and the caller's membership. Structural typing keeps the auth logic
+ * unit-testable with a fake while the real PrismaClient satisfies it.
+ */
+export interface SyncedAccessPrisma {
+  syncedBlock: {
+    findUnique(args: {
+      where: { id: string };
+      select: { workspaceId: true };
+    }): Promise<{ workspaceId: string } | null>;
+  };
+  workspaceMember: {
+    findUnique(args: {
+      where: { workspaceId_userId: { workspaceId: string; userId: string } };
+    }): Promise<Record<string, unknown> | null>;
+  };
+}
+
+export interface SyncedAuthenticateDeps {
+  prisma: SyncedAccessPrisma;
+  secret: string;
+}
+
+/**
+ * Authenticate + authorize a SYNCED-BLOCK connection (`synced:{id}`).
+ *
+ * - Verifies the JWT and extracts the user id.
+ * - Parses the synced-block id from the document name.
+ * - Loads the block (reject if missing) and requires the user be a member of the
+ *   block's workspace (reject non-members) — matching the API's
+ *   `SyncedBlocksService.get` so the two layers agree (spec §9).
+ *
+ * Synced blocks are collaboratively editable by any workspace member, so a
+ * member connection is always writable (no read-only role split here).
+ */
+export async function authenticateSyncedBlock(
+  deps: SyncedAuthenticateDeps,
+  token: string,
+  documentName: string,
+): Promise<AuthResult> {
+  if (!token) throw new Error("Missing authentication token");
+
+  const syncedId = documentNameToSyncedId(documentName);
+  if (!syncedId) throw new Error(`Invalid document name: ${documentName}`);
+
+  let payload: jwt.JwtPayload;
+  try {
+    const decoded = jwt.verify(token, deps.secret);
+    if (typeof decoded === "string") throw new Error("Unexpected token payload");
+    payload = decoded;
+  } catch (err) {
+    throw new Error(`Invalid token: ${(err as Error).message}`);
+  }
+
+  const userId = typeof payload.sub === "string" ? payload.sub : "";
+  if (!userId) throw new Error("Token missing subject");
+
+  const block = await deps.prisma.syncedBlock.findUnique({
+    where: { id: syncedId },
+    select: { workspaceId: true },
+  });
+  if (!block) throw new Error("Access denied");
+
+  const member = await deps.prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: block.workspaceId, userId } },
+  });
+  if (!member) throw new Error("Access denied");
+
+  return { context: { userId }, readOnly: false };
+}
+
+/**
+ * Route an incoming connection to the correct authenticator based on the
+ * document-name prefix: `page:{id}` → page authz, `synced:{id}` → synced-block
+ * authz. The page resolver and synced resolver share the PrismaClient, which
+ * structurally satisfies both surfaces. Throws on an unrecognized name.
+ */
+export async function authenticateDocument(
+  deps: { prisma: PageAccessPrisma & SyncedAccessPrisma; secret: string },
+  token: string,
+  documentName: string,
+): Promise<AuthResult> {
+  if (documentNameToSyncedId(documentName)) {
+    return authenticateSyncedBlock(
+      { prisma: deps.prisma, secret: deps.secret },
+      token,
+      documentName,
+    );
+  }
+  return authenticatePage({ prisma: deps.prisma, secret: deps.secret }, token, documentName);
+}
+
+/**
  * Minimal Prisma surface the persistence functions need. Structural typing keeps
  * these unit-testable with a fake, while the real PrismaClient satisfies it.
  */
@@ -137,6 +248,16 @@ export interface CollabPrisma {
       where: { id: string };
       select: { workspaceId: true; title: true };
     }): Promise<{ workspaceId: string; title: string } | null>;
+  };
+  syncedBlock: {
+    findUnique(args: {
+      where: { id: string };
+      select: { ydocState: true };
+    }): Promise<{ ydocState: Bytes | null } | null>;
+    update(args: {
+      where: { id: string };
+      data: { ydocState: Bytes };
+    }): Promise<unknown>;
   };
   searchIndex: {
     upsert(args: {
@@ -195,6 +316,76 @@ export async function storeYdocState(
     create: { pageId, ydocState: bytes },
     update: { ydocState: bytes },
   });
+}
+
+/**
+ * Load a synced block's persisted Yjs state. Returns null when the block has no
+ * stored state yet (fresh synced document) or the name is malformed.
+ */
+export async function fetchSyncedState(
+  prisma: CollabPrisma,
+  documentName: string,
+): Promise<Uint8Array | null> {
+  const syncedId = documentNameToSyncedId(documentName);
+  if (!syncedId) return null;
+
+  const row = await prisma.syncedBlock.findUnique({
+    where: { id: syncedId },
+    select: { ydocState: true },
+  });
+  if (!row?.ydocState) return null;
+  return row.ydocState instanceof Uint8Array ? row.ydocState : new Uint8Array(row.ydocState);
+}
+
+/**
+ * Persist a synced block's Yjs state. The SyncedBlock row is created by the API
+ * before any connection, so this `update`s the existing row. Throws on a
+ * malformed name so a bad name never silently no-ops.
+ */
+export async function storeSyncedState(
+  prisma: CollabPrisma,
+  documentName: string,
+  state: Uint8Array,
+): Promise<void> {
+  const syncedId = documentNameToSyncedId(documentName);
+  if (!syncedId) throw new Error(`Invalid document name: ${documentName}`);
+  await prisma.syncedBlock.update({
+    where: { id: syncedId },
+    data: { ydocState: toBytes(state) },
+  });
+}
+
+/**
+ * Dispatch a Database-extension fetch to the correct store based on the
+ * document-name prefix (`synced:{id}` → SyncedBlock, else `page:{id}` →
+ * PageContent). One entry point keeps the Hocuspocus wiring simple.
+ */
+export async function fetchDocumentState(
+  prisma: CollabPrisma,
+  documentName: string,
+): Promise<Uint8Array | null> {
+  if (documentNameToSyncedId(documentName)) {
+    return fetchSyncedState(prisma, documentName);
+  }
+  return fetchYdocState(prisma, documentName);
+}
+
+/** Dispatch a Database-extension store to the correct persistence path. */
+export async function storeDocumentState(
+  prisma: CollabPrisma,
+  documentName: string,
+  state: Uint8Array,
+): Promise<void> {
+  if (documentNameToSyncedId(documentName)) {
+    await storeSyncedState(prisma, documentName, state);
+    return;
+  }
+  await storeYdocState(prisma, documentName, state);
+}
+
+/** True for a synced-block document name (so the server skips page-only side effects). */
+export function isSyncedDocument(documentName: string): boolean {
+  return documentNameToSyncedId(documentName) !== null;
 }
 
 /** Default minimum spacing between snapshot rows for a single page (~2 minutes). */

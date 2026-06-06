@@ -7,8 +7,11 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import type { PrismaClient } from "@inclination/db";
 import {
   authenticatePage,
+  authenticateSyncedBlock,
+  fetchSyncedState,
   fetchYdocState,
   maybeWriteSnapshot,
+  storeSyncedState,
   storeYdocState,
 } from "../src/collab.js";
 
@@ -148,5 +151,45 @@ describe("Sync persistence + auth (integration)", () => {
     await expect(
       authenticatePage({ prisma, secret: SECRET }, memberToken, `page:${"00000000-0000-0000-0000-000000000000"}`),
     ).rejects.toThrow(/Access denied/);
+  });
+
+  it("authorizes synced:{id} by workspace membership and round-trips ydocState (real Postgres)", async () => {
+    const block = await prisma.syncedBlock.create({ data: { workspaceId } });
+    const docName = `synced:${block.id}`;
+    const memberToken = jwt.sign({ sub: userId }, SECRET, { expiresIn: "15m" });
+    const outsiderToken = jwt.sign({ sub: outsiderId }, SECRET, { expiresIn: "15m" });
+
+    // Member allowed (writable), non-member rejected, missing block rejected.
+    const ok = await authenticateSyncedBlock({ prisma, secret: SECRET }, memberToken, docName);
+    expect(ok.context).toEqual({ userId });
+    expect(ok.readOnly).toBe(false);
+
+    await expect(
+      authenticateSyncedBlock({ prisma, secret: SECRET }, outsiderToken, docName),
+    ).rejects.toThrow(/Access denied/);
+
+    await expect(
+      authenticateSyncedBlock(
+        { prisma, secret: SECRET },
+        memberToken,
+        `synced:00000000-0000-0000-0000-000000000000`,
+      ),
+    ).rejects.toThrow(/Access denied/);
+
+    // Fetch is null before any edit; store then fetch reproduces the doc.
+    expect(await fetchSyncedState(prisma, docName)).toBeNull();
+
+    const doc = new Y.Doc();
+    doc.getText("body").insert(0, "shared synced content");
+    await storeSyncedState(prisma, docName, Y.encodeStateAsUpdate(doc));
+
+    const loaded = await fetchSyncedState(prisma, docName);
+    expect(loaded).not.toBeNull();
+    const doc2 = new Y.Doc();
+    Y.applyUpdate(doc2, loaded!);
+    expect(doc2.getText("body").toString()).toBe("shared synced content");
+
+    const row = await prisma.syncedBlock.findUnique({ where: { id: block.id } });
+    expect(row?.ydocState).toBeTruthy();
   });
 });
