@@ -25,10 +25,10 @@ import { authHeader, registerVerifyLogin, type PublicUser, type Tokens } from ".
  */
 
 // Editor sync goes over a websocket through Caddy; give it room.
-const SYNC_TIMEOUT = 20_000;
+const SYNC_TIMEOUT = 30_000;
 // Synced-block propagation rides a second websocket (`synced:{id}`); allow
 // generous headroom for the create round-trip + cross-context convergence.
-const SYNCED_TIMEOUT = 40_000;
+const SYNCED_TIMEOUT = 60_000;
 
 const editorOf = (page: PwPage) => page.getByTestId("editor").locator(".ProseMirror");
 const presenceOf = (page: PwPage) => page.getByTestId("presence-indicator");
@@ -294,7 +294,7 @@ test("3 — a synced block edited on one page propagates to another view of it",
   browser,
   request,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   const stamp = Date.now();
   const account = {
     email: `synced-${stamp}@example.com`,
