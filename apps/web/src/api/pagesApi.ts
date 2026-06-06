@@ -10,6 +10,8 @@ import type {
   Page,
   PageContent,
   PageWithBreadcrumbs,
+  Snapshot,
+  SnapshotContent,
   Workspace,
 } from "./types";
 
@@ -48,6 +50,15 @@ export function createPagesApi(client: ApiClient) {
     putReferences: (id: string, pageIds: string[]) =>
       client.put<{ count: number }>(`/pages/${id}/references`, { pageIds }),
     getBacklinks: (id: string) => client.get<Backlink[]>(`/pages/${id}/backlinks`),
+
+    // Version history / snapshots (Phase 7)
+    listSnapshots: (id: string) => client.get<Snapshot[]>(`/pages/${id}/snapshots`),
+    getSnapshot: (id: string, snapId: string) =>
+      client.get<SnapshotContent>(`/pages/${id}/snapshots/${snapId}`),
+    createSnapshot: (id: string, label?: string) =>
+      client.post<Snapshot>(`/pages/${id}/snapshots`, label ? { label } : {}),
+    restoreSnapshot: (id: string, snapId: string) =>
+      client.post<{ restored: boolean }>(`/pages/${id}/snapshots/${snapId}/restore`),
   };
 }
 

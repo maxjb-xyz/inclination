@@ -3,6 +3,7 @@ import type { Page } from "../api/types";
 import type { BlockAnchor } from "@inclination/shared";
 import { Editor, type InlineCommentAnchor } from "./Editor";
 import { BacklinksPanel } from "./BacklinksPanel";
+import { VersionHistoryPanel } from "./VersionHistoryPanel";
 import { useBacklinks, usePage, useUpdatePage } from "./queries";
 import { useAuthStore } from "../auth/authStore";
 import { useCollabSession } from "../collab/useCollabSession";
@@ -44,6 +45,7 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   const [cover, setCover] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [focusThreadId, setFocusThreadId] = useState<string | null>(null);
   // A pending inline-anchor: when set, an anchored composer is shown.
   const [pendingAnchor, setPendingAnchor] = useState<InlineCommentAnchor | null>(null);
@@ -101,6 +103,14 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
       >
         💬 Comments
       </button>
+      <button
+        type="button"
+        className="page-action"
+        data-testid="toggle-history"
+        onClick={() => setHistoryOpen((o) => !o)}
+      >
+        🕑 History
+      </button>
       {canShare ? (
         <button
           type="button"
@@ -141,6 +151,13 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
           {headerActions}
         </header>
         <DatabaseView databaseId={page.id} workspaceId={workspaceId} />
+        {historyOpen ? (
+          <VersionHistoryPanel
+            pageId={pageId}
+            canWrite={canWrite}
+            onClose={() => setHistoryOpen(false)}
+          />
+        ) : null}
         {shareOpen ? (
           <ShareDialog pageId={pageId} workspaceId={workspaceId} onClose={() => setShareOpen(false)} />
         ) : null}
@@ -229,6 +246,14 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
         onOpenPage={onNavigate}
         loading={backlinksQuery.isLoading}
       />
+
+      {historyOpen ? (
+        <VersionHistoryPanel
+          pageId={pageId}
+          canWrite={canWrite}
+          onClose={() => setHistoryOpen(false)}
+        />
+      ) : null}
 
       {shareOpen ? (
         <ShareDialog pageId={pageId} workspaceId={workspaceId} onClose={() => setShareOpen(false)} />

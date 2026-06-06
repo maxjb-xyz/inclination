@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { projectMove } from "./projectMove";
 import { Sidebar } from "./Sidebar";
 import { PageView } from "./PageView";
 import { TrashView } from "./TrashView";
+import { CommandPalette } from "./CommandPalette";
 import { NotificationsBell } from "../collab/NotificationsBell";
 import {
   useArchivePage,
@@ -56,14 +57,31 @@ function WorkspaceShell({
   const archivePage = useArchivePage(workspaceId);
   const movePage = useMovePage(workspaceId);
   const pages = tree.data ?? [];
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
-  function openPage(id: string): void {
+  const openPage = useCallback((id: string): void => {
     setView({ kind: "page", id });
-  }
+  }, [setView]);
 
-  function createRoot(): void {
+  const createRoot = useCallback((): void => {
     createPage.mutate({}, { onSuccess: (p) => setView({ kind: "page", id: p.id }) });
-  }
+  }, [createPage, setView]);
+
+  const openTrash = useCallback((): void => {
+    setView({ kind: "trash" });
+  }, [setView]);
+
+  // Global ⌘K / Ctrl+K toggles the command palette from any page.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent): void {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   function createChild(parentId: string): void {
     createPage.mutate({ parentId }, { onSuccess: (p) => setView({ kind: "page", id: p.id }) });
@@ -96,6 +114,14 @@ function WorkspaceShell({
       />
       <main className="workspace-main">
         <div className="workspace-topbar">
+          <button
+            type="button"
+            className="quick-switcher-trigger"
+            data-testid="open-command-palette"
+            onClick={() => setPaletteOpen(true)}
+          >
+            🔍 Search… <kbd>⌘K</kbd>
+          </button>
           <span className="spacer" />
           <NotificationsBell onOpenPage={openPage} />
         </div>
@@ -112,6 +138,15 @@ function WorkspaceShell({
           </div>
         )}
       </main>
+      {paletteOpen ? (
+        <CommandPalette
+          workspaceId={workspaceId}
+          onClose={() => setPaletteOpen(false)}
+          onOpenPage={openPage}
+          onNewPage={createRoot}
+          onOpenTrash={openTrash}
+        />
+      ) : null}
     </div>
   );
 }

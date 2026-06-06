@@ -11,6 +11,7 @@ import { buildWebExtensions } from "../editor/extensions";
 import { BlockHandle } from "../editor/BlockHandle";
 import { OpenPageContext, type OpenPageHandler } from "../editor/openPageContext";
 import { DatabaseEditorContext } from "../editor/databaseContext";
+import { UploadEditorContext } from "../editor/uploadContext";
 import { createDbApi } from "../databases/dbApi";
 import {
   buildMentionSuggestion,
@@ -151,9 +152,15 @@ export function Editor({
     [workspaceId, session.pageId],
   );
 
+  const uploadContext = useMemo(
+    () => ({ workspaceId, pageId: session.pageId }),
+    [workspaceId, session.pageId],
+  );
+
   return (
     <OpenPageContext.Provider value={onOpenPage}>
       <DatabaseEditorContext.Provider value={databaseContext}>
+       <UploadEditorContext.Provider value={uploadContext}>
         <div className="editor" data-testid="editor">
           {editor && editable ? <BlockHandle editor={editor} /> : null}
           {selection && onCommentOnSelection ? (
@@ -172,6 +179,7 @@ export function Editor({
           ) : null}
           <EditorContent editor={editor} />
         </div>
+       </UploadEditorContext.Provider>
       </DatabaseEditorContext.Provider>
     </OpenPageContext.Provider>
   );
