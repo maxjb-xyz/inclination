@@ -50,6 +50,7 @@ export class RowsService {
     const { database, page: container } = await this.access.requireDatabase(
       userId,
       databaseId,
+      "write",
     );
 
     let parentId = container.id;
@@ -118,7 +119,7 @@ export class RowsService {
    * `editedBy`/`updatedAt` so last_edited_* recompute.
    */
   async setCell(userId: string, rowPageId: string, input: SetCellInput) {
-    const { row, database } = await this.access.requireRow(userId, rowPageId);
+    const { row, database } = await this.access.requireRow(userId, rowPageId, "write");
 
     const property = await this.prisma.property.findUnique({
       where: { id: input.propertyId },
@@ -256,7 +257,7 @@ export class RowsService {
     propertyId: string,
     input: RelationLinkInput,
   ) {
-    const { property, database } = await this.access.requireProperty(userId, propertyId);
+    const { property, database } = await this.access.requireProperty(userId, propertyId, "write");
     if (property.type !== "relation") {
       throw new BadRequestException("propertyId is not a relation property");
     }

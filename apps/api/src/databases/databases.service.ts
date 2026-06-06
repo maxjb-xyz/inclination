@@ -185,7 +185,7 @@ export class DatabasesService {
 
   /** Update database-level settings: default view, sub-items config. */
   async update(userId: string, databaseId: string, input: UpdateDatabaseInput) {
-    const { database } = await this.access.requireDatabase(userId, databaseId);
+    const { database } = await this.access.requireDatabase(userId, databaseId, "write");
 
     if (input.defaultViewId) {
       const view = await this.prisma.view.findUnique({

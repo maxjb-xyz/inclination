@@ -20,6 +20,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@inclination/shared": "workspace:*",
     "@prisma/client": "^6.2.1"
   },
   "devDependencies": {

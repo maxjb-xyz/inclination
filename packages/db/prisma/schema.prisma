@@ -171,6 +171,11 @@ model Page {
   fromLinks RelationLink[] @relation("RelationLinkFromRow")
   toLinks   RelationLink[] @relation("RelationLinkToRow")
 
+  // Phase 6 — sharing + comments (spec §5). Explicit per-page Permission grants
+  // (inherited down the tree) and Comments anchored to this page.
+  permissions Permission[]
+  comments    Comment[]
+
   @@index([workspaceId, parentId, archivedAt])
   @@index([parentId, sortKey])
 }
@@ -309,4 +314,64 @@ model View {
   database Database @relation(fields: [databaseId], references: [pageId], onDelete: Cascade)
 
   @@index([databaseId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Phase 6 — Comments, sharing & permissions (spec §5)
+// ─────────────────────────────────────────────────────────────
+
+// An explicit access grant on a page (spec §5). The shared resolver walks a
+// page's ancestors and the NEAREST matching grant wins; if none, the workspace
+// role default applies (guests get no default — page-grant only).
+//   subjectType: `user` (subjectId = userId) | `workspace` (subjectId =
+//   workspaceId) | `public` (subjectId = null; Phase 8 publishing).
+//   role: full | edit | comment | read.
+// Cascades away with its page so grants never dangle.
+model Permission {
+  id          String   @id @default(uuid())
+  pageId      String
+  subjectType String // user | workspace | public
+  subjectId   String? // userId / workspaceId; null for `public`
+  role        String // full | edit | comment | read
+  createdAt   DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, subjectType, subjectId])
+  @@index([pageId])
+}
+
+// A comment on a page (spec §5). Page-level when `blockAnchor` is null; inline
+// when it carries {blockId, from, to}. Threaded via `threadId`
+// (root = its own id) and `parentCommentId` (the replied-to comment). `body` is
+// rich-text JSON; `resolvedAt` toggles resolution. Cascades with its page.
+model Comment {
+  id              String    @id @default(uuid())
+  pageId          String
+  blockAnchor     Json?
+  threadId        String
+  parentCommentId String?
+  authorId        String
+  body            Json
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([threadId])
+}
+
+// An in-app notification for a user (spec §5). `type` is mention |
+// comment_reply | invite | share | …; `sourceRef` (JSON) points at the
+// originating entity (e.g. {commentId, pageId}); `readAt` toggles read state.
+model Notification {
+  id          String    @id @default(uuid())
+  recipientId String
+  type        String
+  sourceRef   Json
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([recipientId])
 }

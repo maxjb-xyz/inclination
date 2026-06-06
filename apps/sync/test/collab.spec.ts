@@ -18,14 +18,24 @@ function signToken(sub: string, opts: jwt.SignOptions = {}): string {
   return jwt.sign({ sub }, SECRET, { expiresIn: "15m", ...opts });
 }
 
-/** Fake Prisma for the auth path (page lookup + membership). */
+/**
+ * Fake Prisma for the auth path (page lookup + membership + grants). The shared
+ * resolver walks the page's ancestor chain; a single root page (parentId=null)
+ * keeps these auth tests focused on the membership/grant outcome. `grants`
+ * defaults to none so the workspace-role default applies.
+ */
 function authPrisma(opts: {
   page?: { workspaceId: string; archivedAt: Date | null } | null;
   member?: Record<string, unknown> | null;
+  grants?: { pageId: string; subjectType: string; subjectId: string | null; role: string }[];
 }): PageAccessPrisma {
+  const pageRow = opts.page
+    ? { id: "page-1", parentId: null, ...opts.page }
+    : null;
   return {
-    page: { findUnique: vi.fn().mockResolvedValue(opts.page ?? null) },
+    page: { findUnique: vi.fn().mockResolvedValue(pageRow) },
     workspaceMember: { findUnique: vi.fn().mockResolvedValue(opts.member ?? null) },
+    permission: { findMany: vi.fn().mockResolvedValue(opts.grants ?? []) },
   } as unknown as PageAccessPrisma;
 }
 

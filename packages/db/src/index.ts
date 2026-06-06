@@ -4,6 +4,8 @@ export * from "@prisma/client";
 export { getPrisma } from "./client";
 export {
   resolvePageAccess,
+  capabilitiesForRole,
   type PageAccess,
   type PageAccessPrisma,
+  type PermissionRole,
 } from "./permissions";

@@ -27,7 +27,7 @@ export class ViewsService {
   }
 
   async create(userId: string, databaseId: string, input: CreateViewInput) {
-    await this.access.requireDatabase(userId, databaseId);
+    await this.access.requireDatabase(userId, databaseId, "write");
     const order = input.order ?? (await this.nextOrder(databaseId));
     const view = await this.prisma.view.create({
       data: {
@@ -48,7 +48,7 @@ export class ViewsService {
   }
 
   async update(userId: string, viewId: string, input: UpdateViewInput) {
-    const { view, database } = await this.access.requireView(userId, viewId);
+    const { view, database } = await this.access.requireView(userId, viewId, "write");
     const updated = await this.prisma.view.update({
       where: { id: viewId },
       data: {
@@ -71,7 +71,7 @@ export class ViewsService {
   }
 
   async remove(userId: string, viewId: string) {
-    const { view, database } = await this.access.requireView(userId, viewId);
+    const { view, database } = await this.access.requireView(userId, viewId, "write");
     await this.prisma.$transaction(async (tx) => {
       await tx.view.delete({ where: { id: viewId } });
       // Clear defaultViewId if it pointed at the deleted view.
@@ -98,7 +98,7 @@ export class ViewsService {
 
   /** Set the database's default view (must belong to the database). */
   async setDefault(userId: string, viewId: string) {
-    const { view, database } = await this.access.requireView(userId, viewId);
+    const { view, database } = await this.access.requireView(userId, viewId, "write");
     await this.prisma.database.update({
       where: { pageId: database.pageId },
       data: { defaultViewId: view.id },
