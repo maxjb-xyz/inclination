@@ -10,6 +10,7 @@ import { proseMirrorToMarkdown } from "@inclination/editor";
 import { PrismaService } from "../prisma/prisma.service";
 import { ydocStateToProseMirror } from "./ydoc-to-pm";
 import { slugify, uniqueSlug } from "./slug";
+import { sanitizePublishedHtml } from "./sanitize";
 
 /**
  * Phase 8 — page publishing (spec §5/§8).
@@ -56,6 +57,11 @@ export class PublishingService {
   async publish(userId: string, pageId: string, input: PublishPageInput) {
     await this.requireAccess(userId, pageId, "share");
 
+    // Server-side sanitize the client-rendered snapshot at publish time
+    // (defense-in-depth): the stored HTML is clean at rest, so a stripped/
+    // bypassed client sanitizer can never serve a stored XSS payload.
+    const safeHtml = sanitizePublishedHtml(input.html);
+
     const existing = await this.prisma.publicShare.findUnique({ where: { pageId } });
 
     // Determine the desired slug. Prefer an explicit request; otherwise keep the
@@ -83,7 +89,7 @@ export class PublishingService {
         published: true,
         includeSubpages: input.includeSubpages,
         allowDuplicate: input.allowDuplicate,
-        publishedHtml: input.html,
+        publishedHtml: safeHtml,
         publishedTitle: input.title,
       },
       update: {
@@ -91,7 +97,7 @@ export class PublishingService {
         published: true,
         includeSubpages: input.includeSubpages,
         allowDuplicate: input.allowDuplicate,
-        publishedHtml: input.html,
+        publishedHtml: safeHtml,
         publishedTitle: input.title,
       },
     });

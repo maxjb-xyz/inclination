@@ -67,9 +67,11 @@ export class WorkspacesService {
   }
 
   async members(userId: string, workspaceId: string) {
-    await this.requireMember(userId, workspaceId);
+    const me = await this.requireMember(userId, workspaceId);
+    // Guests must not enumerate the full member directory (Phase 6 follow-up):
+    // a guest only sees their own membership. Non-guests see the whole roster.
     const rows = await this.prisma.workspaceMember.findMany({
-      where: { workspaceId },
+      where: { workspaceId, ...(me.role === "guest" ? { userId } : {}) },
       include: { user: true },
       orderBy: { joinedAt: "asc" },
     });
