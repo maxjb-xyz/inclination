@@ -6,7 +6,7 @@ Single source of truth for build state. One entry per phase (and per significant
 
 - [x] **Phase 0 — Foundation** — monorepo, Docker Compose, CI, `/health` + `/ready`
 - [x] **Phase 1 — Auth & workspaces**
-- [ ] **Phase 2 — Page tree & single-user editor**
+- [x] **Phase 2 — Page tree & single-user editor**
 - [ ] **Phase 3 — Real-time collaboration**
 - [ ] **Phase 4 — Full block editor**
 - [ ] **Phase 5 — Databases (collections)**
@@ -96,3 +96,30 @@ Single source of truth for build state. One entry per phase (and per significant
 
 **References**
 - Branch `phase-1-auth-workspaces` → merged to `main` (local), tag `phase-1-complete`.
+
+---
+
+## Phase 2 — Page Tree & Single-User Editor
+
+**Status:** ✅ complete (2026-06-06) — built via subagents (orchestrator verified each).
+
+**Plan:** [`plans/phase-2-page-tree-editor-plan.md`](plans/phase-2-page-tree-editor-plan.md)
+
+**What was built**
+- Data model: `Page` (self-ref tree, `sortKey` fractional index, `archivedAt`, icon/cover, type) + `PageContent` (interim Tiptap JSON `doc`; Phase 3 migrates to Yjs `ydocState`), `PageType` enum; `pages` migration.
+- API (`apps/api/src/pages`): create, list-tree, get+breadcrumbs, patch, **move** (reorder + reparent via fractional-indexing, cycle-guarded, cross-workspace-rejected), soft-delete cascading `archivedAt` to descendants, restore (un-archives ancestors too), trash list, content get/put. Every endpoint under `JwtAuthGuard` + workspace-membership authz (reusing `WorkspacesService.requireMember`); page-scoped routes check the page's own workspace (no IDOR).
+- Web (`apps/web`): authenticated `apiClient` (Bearer + single-flight 401 refresh-and-retry), TanStack Query layer, workspace bootstrap, collapsible dnd-kit page tree (reorder + reparent), breadcrumbs, Tiptap StarterKit editor with page-bound debounced autosave + content load, trash/restore, icon/cover editing.
+
+**Gate evidence** ("create / nest / move / trash / restore; text edits persist across reload")
+- Lint + typecheck clean. Unit: shared 22 + api 30 + sync 3 + web 23. Integration (Testcontainers): 17 total (incl. 9 pages: nest/move/cycle-reject/trash-restore/content round-trip/non-member 403). E2E (Playwright, real stack): 6 — incl. phase-2 PART A (REST tree ops + content round-trip) and PART B (type in real editor → reload → text persists). Clean `docker compose up` healthy with the new migration (verified the `fractional-indexing` ESM dep runs under the CJS Node 22 container).
+
+**Decisions / deviations**
+- `PageContent.doc` stores Tiptap JSON in Phase 2 (no live collab yet); Phase 3 migrates to Yjs `ydocState` (documented in schema + plan).
+- Built by dispatching subagents (backend T1, web T2, e2e T3) with the orchestrator independently verifying every gate — keeps context clean per the user's directive.
+- Adversarial review found 2 MATERIAL client bugs — **M2** concurrent-refresh force-logout and **M1** autosave-writes-wrong-page — both fixed with regression tests and re-verified (e2e green) before merge.
+
+**Follow-ups (deferred)**
+- Restore currently un-archives the whole subtree including independently-trashed descendants (consider archive-timestamp batching); `move` doesn't reject an archived target parent; editor act() warning in tests; code-split Tiptap bundle.
+
+**References**
+- Branch `phase-2-page-tree-editor` → merged to `main` (local), tag `phase-2-complete`.
