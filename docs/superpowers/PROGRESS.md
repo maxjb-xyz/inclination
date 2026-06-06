@@ -9,7 +9,7 @@ Single source of truth for build state. One entry per phase (and per significant
 - [x] **Phase 2 — Page tree & single-user editor**
 - [x] **Phase 3 — Real-time collaboration**
 - [x] **Phase 4 — Full block editor**
-- [ ] **Phase 5 — Databases (collections)**
+- [x] **Phase 5 — Databases (collections)**
 - [ ] **Phase 6 — Comments, sharing & permissions**
 - [ ] **Phase 7 — Search, files & version history**
 - [ ] **Phase 8 — Publishing, import/export & synced blocks**
@@ -180,3 +180,34 @@ Single source of truth for build state. One entry per phase (and per significant
 
 **References**
 - Branch `phase-4-full-block-editor` → merged to `main` (local), tag `phase-4-complete`.
+
+---
+
+## Phase 5 — Databases (Collections)
+
+**Status:** ✅ complete (2026-06-06) — the largest phase; built via 6 subagents (model/engines/API/realtime/web/e2e), orchestrator verified each gate.
+
+**Plan:** [`plans/phase-5-databases-plan.md`](plans/phase-5-databases-plan.md)
+
+**What was built**
+- DB: `Database/Property/Cell/RelationLink/View` models + `databases` migration (rows are `Page`s of type `row`).
+- `@inclination/db-engine` (new pure package): per-type cell value validation, AND/OR filter eval, multi-key sort, grouping, all rollup aggregations, and a formula parser+evaluator (bounded fns, errors-as-values, depth-guarded). 109 unit tests.
+- API (`apps/api/src/databases`): databases/properties/views/rows/cells/relations CRUD; two-way relation mirror (transactional); per-request computed values (relation/rollup/formula, cycle-guarded); `POST /databases/:id/query` pipeline (filter→sort→group→cursor-paginate) returning cells + computed + groups. All authz via the shared resolver (no IDOR).
+- Realtime: socket.io gateway at `/api/realtime` (JWT-handshake auth, per-database room authorized by the shared resolver) bound to `DatabaseEventsService`, broadcasting every mutation (LWW per cell) — the structured-data mechanism (relational + broadcast, NOT Yjs, per §4/§6).
+- Web (`apps/web/src/databases`): dbApi + realtime client (per-db rooms, self-echo suppression, cache patch); `DatabaseView` with Table/Board(dnd)/Calendar/Gallery, per-type cell editors, filter/sort/group/visible-props controls, property/select/relation/rollup/formula config; inline `databaseView` editor node + slash action; optimistic cell edits.
+
+**Gate evidence** ("Tasks board-by-status + calendar-by-due + filtered table; rollup over linked Projects; a formula; a sub-task; edits propagate live to a 2nd browser")
+- Lint + typecheck clean. Unit: db-engine 109 + api 73 + web 82 + shared + db. Integration (Testcontainers, real Postgres + real socket client): databases 13 + realtime 3 (+ full api suite 38). E2E (Playwright, real stack, verified via `rtk proxy`): 11 total incl. phase5 PART A (board groups, filtered/calendar rows, rollup=150/100/0, formula values, sub-item nesting — all via the API engine end-to-end) and PART B (a real inline cell edit by user A propagates live to user B's browser over the socket).
+- Clean `docker compose up` healthy (socket.io proxied via Caddy `/api/*`).
+
+**Decisions / deviations**
+- Structured data is relational + LWW broadcast (not Yjs); realtime suppresses a client's own echoes (optimistic), so cross-browser propagation is proven with two distinct users.
+- Engines isolated in `@inclination/db-engine` for reuse + deterministic unit testing (time injected).
+- Query loads a database's rows in-memory per request then filters/sorts/groups/paginates (fine for v1; flagged for the scale/index pass).
+- Adversarial review found no critical; one MATERIAL (query 500→400 on a type-mismatched filter operator) fixed with error-translation + a formula parser depth guard, with tests.
+
+**Follow-ups (deferred)**
+- Validate filter-operator-vs-property-type at the schema edge (precise field errors); virtualize large table views + bound the per-query in-memory row load (scale); cross-workspace relations expose linked row-ids (metadata) to target-only members — revisit with Phase 6 permissions; gallery/date config richer handling.
+
+**References**
+- Branch `phase-5-databases` → merged to `main` (local), tag `phase-5-complete`.
