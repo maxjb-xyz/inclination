@@ -15,6 +15,9 @@ export type { SlashMenuItem } from "./slashMenu";
 export { extractPageReferences } from "./references";
 export type { ProseMirrorNodeJSON } from "./references";
 
+// URL guard for user-supplied media URLs (http/https only) — prevents stored XSS.
+export { isSafeUrl, safeUrl } from "./url";
+
 // Custom nodes (exported so the web can attach React NodeViews).
 export { Callout } from "./nodes/callout";
 export { Columns, Column } from "./nodes/columns";

@@ -1,4 +1,5 @@
 import { mergeAttributes, Node } from "@tiptap/core";
+import { isSafeUrl } from "../url";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -40,8 +41,17 @@ function createMediaNode(config: MediaNodeConfig): Node {
       return {
         src: {
           default: "",
-          parseHTML: (element) => element.getAttribute("data-src") ?? "",
-          renderHTML: (attributes) => ({ "data-src": attributes.src as string }),
+          // Drop unsafe schemes (javascript:/data:/…) on parse so a malicious
+          // serialized doc can't reintroduce an executable URL into the model.
+          parseHTML: (element) => {
+            const value = element.getAttribute("data-src") ?? "";
+            return isSafeUrl(value) ? value : "";
+          },
+          // Only ever serialize a safe URL into the stored/round-tripped HTML.
+          renderHTML: (attributes) => {
+            const value = attributes.src as string;
+            return { "data-src": isSafeUrl(value) ? value : "" };
+          },
         },
         title: {
           default: "",

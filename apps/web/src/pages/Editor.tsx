@@ -1,6 +1,6 @@
 import "katex/dist/katex.min.css";
 import "highlight.js/styles/github.css";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
@@ -63,15 +63,22 @@ export function Editor({
 }: EditorProps): React.ReactElement {
   const { doc, provider } = session;
 
-  // Suggestion configs are stable for the lifetime of this workspace mount;
-  // the workspace id is resolved lazily so it always reflects the current value.
+  // Keep the current workspace id in a ref so suggestion query closures always
+  // read the latest value. A workspace switch without a doc swap does NOT rebuild
+  // the editor (it is keyed only on [doc, provider]), so the suggestion configs
+  // must not close over a stale `workspaceId` — the ref keeps them correct.
+  const workspaceIdRef = useRef(workspaceId);
+  workspaceIdRef.current = workspaceId;
+
+  // Suggestion configs are stable for the lifetime of this editor; the workspace
+  // id is resolved lazily via the ref so it always reflects the current value.
   const { mentionSuggestion, pageLinkSuggestion } = useMemo(() => {
-    const deps = { api: pagesApi, getWorkspaceId: () => workspaceId };
+    const deps = { api: pagesApi, getWorkspaceId: () => workspaceIdRef.current };
     return {
       mentionSuggestion: buildMentionSuggestion(deps),
       pageLinkSuggestion: buildPageLinkSuggestion(deps),
     };
-  }, [workspaceId]);
+  }, []);
 
   const editor = useEditor(
     {
