@@ -16,6 +16,7 @@ import type { Page, Prisma } from "@inclination/db";
 import { resolvePageAccess } from "@inclination/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { WorkspacesService } from "../workspaces/workspaces.service";
+import { SearchIndexService } from "../search/search-index.service";
 import { computeSortKey, type SortableSibling } from "./sort-key";
 import { computeReferenceDiff, filterReferenceTargets } from "./references";
 
@@ -24,6 +25,7 @@ export class PagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly workspaces: WorkspacesService,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   /** Loads a page or throws 404. */
@@ -140,7 +142,7 @@ export class PagesService {
 
   async update(userId: string, id: string, input: UpdatePageInput) {
     await this.requirePageAccess(userId, id, "write");
-    return this.prisma.page.update({
+    const page = await this.prisma.page.update({
       where: { id },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
@@ -149,6 +151,11 @@ export class PagesService {
         editedById: userId,
       },
     });
+    // Keep the page's searchable title current on rename (spec §6). Best-effort.
+    if (input.title !== undefined) {
+      await this.searchIndex.syncTitle(id);
+    }
+    return page;
   }
 
   /** True if `candidateAncestorId` is `pageId` or any of its descendants. */

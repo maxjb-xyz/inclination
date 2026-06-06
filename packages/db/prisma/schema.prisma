@@ -176,6 +176,11 @@ model Page {
   permissions Permission[]
   comments    Comment[]
 
+  // Phase 7 — search + files (spec §5). A page's 1:1 SearchIndex row (title +
+  // extracted body + cell text) and any Attachments uploaded against it.
+  searchIndex SearchIndex?
+  attachments Attachment[]
+
   @@index([workspaceId, parentId, archivedAt])
   @@index([parentId, sortKey])
 }
@@ -374,4 +379,53 @@ model Notification {
   createdAt   DateTime  @default(now())
 
   @@index([recipientId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Phase 7 — Search, files & version history (spec §5, §6, §9)
+// ─────────────────────────────────────────────────────────────
+
+// Full-text search index (spec §5/§6): one row per page holding the page title,
+// the plain text extracted from the Yjs body on save (by the sync server), and a
+// concatenation of its database cell text. The actual search column is a Postgres
+// `tsvector` (`tsv`) that Prisma cannot model natively: the migration adds the
+// column, a BEFORE INSERT/UPDATE trigger that recomputes it from
+// `to_tsvector('english', title || ' ' || bodyText)`, and a GIN index over it.
+// We keep the scalar fields here (writers set title/bodyText; the trigger owns
+// `tsv`) plus an `Unsupported("tsvector")?` mapping so Prisma preserves the
+// column on future migrations.
+model SearchIndex {
+  pageId      String   @id
+  workspaceId String
+  title       String   @default("")
+  bodyText    String   @default("")
+  tsv         Unsupported("tsvector")?
+  updatedAt   DateTime @updatedAt
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+// An uploaded file/image (spec §5, §9). Created when a presigned upload URL is
+// issued; the browser PUTs bytes directly to MinIO under `objectKey`
+// (`{workspaceId}/{uuid}/{filename}`). `pageId` is nullable and SetNull on page
+// delete so an attachment survives its page being removed (and orphaned objects
+// can be reaped later). Authorization for download goes through the page (via
+// resolvePageAccess) or workspace membership when there is no page.
+model Attachment {
+  id          String   @id @default(uuid())
+  pageId      String?
+  workspaceId String
+  objectKey   String   @unique
+  filename    String
+  mime        String
+  size        Int
+  uploaderId  String
+  createdAt   DateTime @default(now())
+
+  page Page? @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@index([pageId])
+  @@index([workspaceId])
 }

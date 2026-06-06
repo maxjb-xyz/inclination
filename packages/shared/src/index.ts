@@ -6,3 +6,6 @@ export * from "./page-schemas";
 export * from "./comment-schemas";
 export * from "./sharing-schemas";
 export * from "./database-schemas";
+export * from "./search-schemas";
+export * from "./file-schemas";
+export * from "./snapshot-schemas";
