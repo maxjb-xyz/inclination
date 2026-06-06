@@ -6,8 +6,10 @@ import { ConfigModule } from "./config/config.module";
 import { HealthController } from "./health/health.controller";
 import { HealthService } from "./health/health.service";
 import { HEALTH_PROBES } from "./health/checks";
+import { CommentsModule } from "./comments/comments.module";
 import { DatabasesModule } from "./databases/databases.module";
 import { MailModule } from "./mail/mail.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 import { PagesModule } from "./pages/pages.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { PrismaService } from "./prisma/prisma.service";
@@ -26,6 +28,8 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     WorkspacesModule,
     PagesModule,
     DatabasesModule,
+    CommentsModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
   providers: [
