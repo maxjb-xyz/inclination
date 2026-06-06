@@ -14,5 +14,8 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["test/**/*.spec.ts"],
+    // Integration specs (Testcontainers) are opt-in via `test:integration` so the
+    // default unit run stays fast and Docker-free.
+    exclude: ["test/**/*.integration.spec.ts", "node_modules/**", "dist/**"],
   },
 });

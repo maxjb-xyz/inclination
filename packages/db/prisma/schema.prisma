@@ -153,21 +153,40 @@ model Page {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  parent    Page?        @relation("PageChildren", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Page[]       @relation("PageChildren")
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent    Page?         @relation("PageChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Page[]        @relation("PageChildren")
   content   PageContent?
+  snapshots PageSnapshot[]
 
   @@index([workspaceId, parentId, archivedAt])
   @@index([parentId, sortKey])
 }
 
-// Phase 2 stores the editor doc as ProseMirror/Tiptap JSON. Phase 3 introduces
-// ydocState (bytea) + Yjs and migrates this. Documented interim per "no live collab yet."
+// Phase 2 stored the editor doc as ProseMirror/Tiptap JSON (`doc`). Phase 3 makes
+// Yjs authoritative for the page body: the collaborative document state is
+// persisted as a Yjs update binary in `ydocState` (spec §4). `doc` is retained
+// for back-compat but is no longer written by the collaborative editor.
 model PageContent {
   pageId    String   @id
   doc       Json     @default("{}")
+  ydocState Bytes?
   updatedAt DateTime @updatedAt
 
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+}
+
+// Point-in-time snapshots of a page's Yjs document (spec §5). The sync server
+// writes these (throttled) so version history / restore can be built later.
+model PageSnapshot {
+  id           String   @id @default(uuid())
+  pageId       String
+  ydocSnapshot Bytes
+  label        String?
+  authorId     String?
+  createdAt    DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
 }

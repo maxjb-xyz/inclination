@@ -211,6 +211,10 @@ test("PART A — pages create/nest/move/trash/restore and content round-trips vi
 });
 
 test("PART B — editor text persists across reload via the real UI", async ({ page, request }) => {
+  // This test does register+verify (Mailpit polling) AND exercises the collab
+  // websocket persistence path (Yjs over /collab), then reloads — more than the
+  // default 30s budget. Give it room so it is not flaky on a slow Mailpit poll.
+  test.setTimeout(90_000);
   const stamp = Date.now();
   const account = {
     email: `pages-b-${stamp}@example.com`,
@@ -247,8 +251,14 @@ test("PART B — editor text persists across reload via the real UI", async ({ p
   await page.keyboard.type(sentence);
   await expect(editor).toContainText(sentence);
 
-  // Wait for the autosave to flush (debounce ~600ms) via the save indicator.
-  await expect(page.locator(".save-indicator")).toHaveText("Saved", { timeout: 5_000 });
+  // The page body is now collaborative: persistence is the sync server's job
+  // (Yjs over the /collab websocket), not a REST autosave. Wait for the collab
+  // session to report "Connected" so the typed update is flushed to the server,
+  // then give the debounced store a brief moment before reloading.
+  await expect(page.getByTestId("presence-indicator")).toContainText("Connected", {
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(1_500);
 
   // 9. Reload, reopen the page, and assert the text survived. This is the gate.
   await page.reload();

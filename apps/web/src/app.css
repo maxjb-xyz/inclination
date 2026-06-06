@@ -3,7 +3,10 @@
   --muted: #6b7280;
   --accent: #2563eb;
   --bg-hover: #f3f4f6;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 * {
@@ -213,10 +216,58 @@ body {
   border-radius: 4px;
 }
 
-.save-indicator {
+.presence-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
   color: var(--muted);
   height: 1rem;
+}
+
+.presence-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.presence-dot--connected {
+  background: #16a34a;
+}
+
+.presence-dot--connecting {
+  background: #d97706;
+}
+
+.presence-dot--offline {
+  background: #dc2626;
+}
+
+/* Remote collaborator carets rendered by CollaborationCursor. */
+.collaboration-cursor__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 1px solid #0d0d0d;
+  border-right: 1px solid #0d0d0d;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+  color: #fff;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px 3px 3px 0;
+  user-select: none;
 }
 
 .editor {

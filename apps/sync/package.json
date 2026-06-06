@@ -8,15 +8,21 @@
     "start": "node dist/main.js",
     "start:dev": "tsx watch src/main.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "vitest run -c vitest.integration.config.ts"
   },
   "dependencies": {
+    "@hocuspocus/extension-database": "^2.15.3",
     "@hocuspocus/server": "^2.15.2",
     "@inclination/db": "workspace:*",
     "@inclination/shared": "workspace:*",
-    "ws": "^8.18.0"
+    "jsonwebtoken": "^9.0.3",
+    "ws": "^8.18.0",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^10.28.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.5",
     "@types/ws": "^8.5.13",
     "tsx": "^4.19.2",

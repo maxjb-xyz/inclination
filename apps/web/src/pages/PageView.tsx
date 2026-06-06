@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Page } from "../api/types";
 import { Editor } from "./Editor";
-import { usePage, usePageContent, useUpdatePage } from "./queries";
-import { createPagesApi } from "../api/pagesApi";
-import { apiClient } from "../api/apiClient";
-
-const api = createPagesApi(apiClient);
+import { usePage, useUpdatePage } from "./queries";
+import { useAuthStore } from "../auth/authStore";
+import { useCollabSession } from "../collab/useCollabSession";
+import { colorForUserId } from "../collab/color";
 
 export interface PageViewProps {
   workspaceId: string;
@@ -15,8 +14,10 @@ export interface PageViewProps {
 
 export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): React.ReactElement {
   const pageQuery = usePage(pageId);
-  const contentQuery = usePageContent(pageId);
   const updatePage = useUpdatePage(workspaceId);
+
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.tokens?.accessToken ?? "");
 
   const page = pageQuery.data?.page;
   const breadcrumbs = pageQuery.data?.breadcrumbs ?? [];
@@ -24,7 +25,6 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   const [title, setTitle] = useState("");
   const [icon, setIcon] = useState("");
   const [cover, setCover] = useState("");
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   // Sync local edit fields when the loaded page changes.
   const pageKey = page ? `${page.id}:${page.title}:${page.icon}:${page.cover}` : null;
@@ -44,18 +44,19 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
     [pageId, updatePage],
   );
 
-  const handleSave = useCallback((doc: Record<string, unknown>, targetPageId: string) => {
-    setSaveState("saving");
-    // Persist to the page the edit was made in (targetPageId), NOT the page that
-    // happens to be active now — a debounced save flushed during a page switch
-    // must not write page A's content onto page B.
-    api
-      .saveContent(targetPageId, doc)
-      .then(() => setSaveState("saved"))
-      .catch(() => setSaveState("idle"));
-  }, []);
+  // The body is collaborative: a fresh Yjs doc + provider per page (offline via
+  // IndexedDB). Persistence is the sync server's job now — no REST body save.
+  const { session, status, peers } = useCollabSession(pageId, accessToken);
 
-  if (pageQuery.isLoading || contentQuery.isLoading) {
+  const collabUser = useMemo(
+    () => ({
+      name: user?.displayName ?? "Anonymous",
+      color: colorForUserId(user?.id ?? ""),
+    }),
+    [user?.displayName, user?.id],
+  );
+
+  if (pageQuery.isLoading) {
     return <div className="page-view">Loading…</div>;
   }
   if (pageQuery.isError || !page) {
@@ -106,15 +107,13 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
         />
       </div>
 
-      <div className="save-indicator" role="status">
-        {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
+      <div className="presence-indicator" role="status" data-testid="presence-indicator">
+        <span className={`presence-dot presence-dot--${status}`} aria-hidden="true" />
+        {status === "connected" ? "Connected" : status === "connecting" ? "Connecting…" : "Offline"}
+        {peers > 0 ? ` · ${peers} other${peers === 1 ? "" : "s"} here` : ""}
       </div>
 
-      <Editor
-        pageId={pageId}
-        initialDoc={(contentQuery.data?.doc ?? {}) as Record<string, unknown>}
-        onSave={handleSave}
-      />
+      {session ? <Editor session={session} user={collabUser} /> : null}
     </div>
   );
 }

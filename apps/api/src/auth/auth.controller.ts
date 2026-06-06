@@ -25,7 +25,9 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post("register")
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  // 20/min/IP: still abuse-resistant but does not block legitimate signups from
+  // behind a shared NAT (5/min was impractically strict for a small team).
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   register(@Body(new ZodValidationPipe(registerSchema)) body: RegisterInput) {
     return this.auth.register(body);
   }
