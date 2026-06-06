@@ -8,9 +8,10 @@ RUN corepack enable
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile
-# Build the shared package first so the web app's typecheck can resolve its
-# declared types (dist/index.d.ts); Vite itself aliases to source for bundling.
-RUN pnpm --filter @inclination/shared run build
+# Build the workspace packages first (shared + editor) so the web app's typecheck
+# can resolve their declared types (dist/index.d.ts); Vite aliases to source for
+# bundling, but `tsc --noEmit` in the build resolves the published types.
+RUN pnpm --filter "./packages/*" run build
 RUN pnpm --filter @inclination/web run build
 
 FROM caddy:2-alpine AS runtime
