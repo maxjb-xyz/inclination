@@ -1,6 +1,6 @@
 import "katex/dist/katex.min.css";
 import "highlight.js/styles/github.css";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
@@ -28,6 +28,14 @@ export interface CollabUser {
   color: string;
 }
 
+/** A captured inline-comment anchor: the selected text + its block/range. */
+export interface InlineCommentAnchor {
+  blockId: string;
+  from: number;
+  to: number;
+  text: string;
+}
+
 export interface EditorProps {
   /**
    * The live collaboration session for the open page (Y.Doc + provider). The
@@ -41,6 +49,10 @@ export interface EditorProps {
   workspaceId: string;
   /** Open-page navigation for pageLink / page-mention clicks. */
   onOpenPage: OpenPageHandler;
+  /** When false the editor is rendered read-only (no edit affordances). */
+  editable?: boolean;
+  /** Invoked when the user clicks "Comment" over a non-empty text selection. */
+  onCommentOnSelection?: (anchor: InlineCommentAnchor) => void;
 }
 
 /**
@@ -63,8 +75,11 @@ export function Editor({
   user,
   workspaceId,
   onOpenPage,
+  editable = true,
+  onCommentOnSelection,
 }: EditorProps): React.ReactElement {
   const { doc, provider } = session;
+  const [selection, setSelection] = useState<InlineCommentAnchor | null>(null);
 
   // Keep the current workspace id in a ref so suggestion query closures always
   // read the latest value. A workspace switch without a doc swap does NOT rebuild
@@ -85,16 +100,36 @@ export function Editor({
 
   const editor = useEditor(
     {
+      editable,
       extensions: [
         // Full §7 block set; history off (Collaboration owns undo/redo).
         ...buildWebExtensions({ collaboration: true, mentionSuggestion, pageLinkSuggestion }),
         Collaboration.configure({ document: doc }),
         CollaborationCursor.configure({ provider, user }),
       ],
+      // Surface the current text selection so the page can offer an inline
+      // "Comment" action. We capture the block's start position as a stable-ish
+      // `blockId` plus the document `from`/`to` (a robust-enough anchor — full
+      // ProseMirror mark-based anchoring is heavier than this phase needs).
+      onSelectionUpdate: ({ editor: e }) => {
+        const { from, to, empty } = e.state.selection;
+        if (empty || !onCommentOnSelection) {
+          setSelection(null);
+          return;
+        }
+        const $from = e.state.doc.resolve(from);
+        const blockStart = $from.start($from.depth);
+        setSelection({
+          blockId: String(blockStart),
+          from,
+          to,
+          text: e.state.doc.textBetween(from, to, " "),
+        });
+      },
     },
     // Rebuild the editor whenever the underlying doc/provider changes (page
     // switch). Without this, a stale editor would stay bound to the old doc.
-    [doc, provider],
+    [doc, provider, editable],
   );
 
   // Sync referenced page ids (backlinks) to the API on debounced doc changes.
@@ -120,7 +155,21 @@ export function Editor({
     <OpenPageContext.Provider value={onOpenPage}>
       <DatabaseEditorContext.Provider value={databaseContext}>
         <div className="editor" data-testid="editor">
-          {editor ? <BlockHandle editor={editor} /> : null}
+          {editor && editable ? <BlockHandle editor={editor} /> : null}
+          {selection && onCommentOnSelection ? (
+            <button
+              type="button"
+              className="inline-comment-button"
+              data-testid="inline-comment-button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onCommentOnSelection(selection);
+                setSelection(null);
+              }}
+            >
+              💬 Comment
+            </button>
+          ) : null}
           <EditorContent editor={editor} />
         </div>
       </DatabaseEditorContext.Provider>

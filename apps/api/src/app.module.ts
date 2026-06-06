@@ -12,6 +12,7 @@ import { MailModule } from "./mail/mail.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PagesModule } from "./pages/pages.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { SharingModule } from "./sharing/sharing.module";
 import { PrismaService } from "./prisma/prisma.service";
 import { StorageService } from "./storage/storage.service";
 import { UsersModule } from "./users/users.module";
@@ -30,6 +31,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     DatabasesModule,
     CommentsModule,
     NotificationsModule,
+    SharingModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -3,6 +3,7 @@ import type { projectMove } from "./projectMove";
 import { Sidebar } from "./Sidebar";
 import { PageView } from "./PageView";
 import { TrashView } from "./TrashView";
+import { NotificationsBell } from "../collab/NotificationsBell";
 import {
   useArchivePage,
   useCreatePage,
@@ -94,6 +95,10 @@ function WorkspaceShell({
         onOpenTrash={() => setView({ kind: "trash" })}
       />
       <main className="workspace-main">
+        <div className="workspace-topbar">
+          <span className="spacer" />
+          <NotificationsBell onOpenPage={openPage} />
+        </div>
         {view.kind === "page" ? (
           <PageView workspaceId={workspaceId} pageId={view.id} onNavigate={openPage} />
         ) : view.kind === "trash" ? (

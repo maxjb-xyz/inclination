@@ -964,3 +964,258 @@ button {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+/* ── Phase 6: sharing / comments / notifications ─────────────── */
+.workspace-topbar {
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.workspace-topbar .spacer {
+  flex: 1;
+}
+
+.page-actions {
+  display: inline-flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+.page-action {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.page-action:hover {
+  background: var(--bg-hover);
+}
+
+/* Share dialog */
+.share-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.share-dialog {
+  background: #fff;
+  border-radius: 10px;
+  width: min(480px, 92vw);
+  padding: 1rem 1.25rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.share-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.share-invite {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+.share-invite input {
+  flex: 1;
+}
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--border);
+}
+.share-row__subject {
+  flex: 1;
+}
+.share-msg {
+  color: #059669;
+  font-size: 0.85rem;
+}
+.share-err {
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+.share-workspace {
+  margin-top: 0.75rem;
+}
+
+/* Comments panel */
+.comments-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 90vw);
+  background: #fff;
+  border-left: 1px solid var(--border);
+  padding: 1rem;
+  overflow-y: auto;
+  z-index: 90;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
+}
+.comments-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.comment-thread {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+}
+.comment-thread.is-resolved {
+  opacity: 0.6;
+}
+.comment-thread__anchor {
+  font-size: 0.7rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0 0.3rem;
+}
+.comment {
+  padding: 0.3rem 0;
+}
+.comment__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.comment__author {
+  font-weight: 600;
+}
+.comment-composer {
+  position: relative;
+  margin-top: 0.5rem;
+}
+.comment-composer textarea {
+  width: 100%;
+  min-height: 3rem;
+  resize: vertical;
+}
+.comment-mention-chip {
+  background: var(--bg-hover);
+  border-radius: 4px;
+  padding: 0 0.2rem;
+}
+.comment-mention-menu {
+  position: absolute;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  z-index: 110;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.comment-mention-menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.comment-mention-menu__item:hover {
+  background: var(--bg-hover);
+}
+.comment-mention-menu__hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Inline comment button + composer */
+.inline-comment-button {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.inline-comment-composer {
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+}
+.inline-comment-composer__quote {
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Notifications */
+.notifications {
+  position: relative;
+}
+.notifications__bell {
+  position: relative;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.notifications__badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  border-radius: 999px;
+  padding: 0 0.3rem;
+  min-width: 1rem;
+  text-align: center;
+}
+.notifications__panel {
+  position: absolute;
+  right: 0;
+  top: 120%;
+  width: 300px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 120;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.notifications__panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+.notifications__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.notifications__item:hover {
+  background: var(--bg-hover);
+}
+.notifications__item.is-unread {
+  font-weight: 600;
+  background: #eff6ff;
+}

@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Page } from "../api/types";
-import { Editor } from "./Editor";
+import type { BlockAnchor } from "@inclination/shared";
+import { Editor, type InlineCommentAnchor } from "./Editor";
 import { BacklinksPanel } from "./BacklinksPanel";
 import { useBacklinks, usePage, useUpdatePage } from "./queries";
 import { useAuthStore } from "../auth/authStore";
 import { useCollabSession } from "../collab/useCollabSession";
 import { colorForUserId } from "../collab/color";
 import { DatabaseView } from "../databases/DatabaseView";
+import { usePageAccess, useCreateComment } from "../collab/collabQueries";
+import { ShareDialog } from "../collab/ShareDialog";
+import { CommentsPanel } from "../collab/CommentsPanel";
+import { CommentComposer } from "../collab/CommentComposer";
 
 export interface PageViewProps {
   workspaceId: string;
@@ -18,6 +23,8 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   const pageQuery = usePage(pageId);
   const updatePage = useUpdatePage(workspaceId);
   const backlinksQuery = useBacklinks(pageId);
+  const accessQuery = usePageAccess(pageId);
+  const createComment = useCreateComment(pageId);
 
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.tokens?.accessToken ?? "");
@@ -25,9 +32,21 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   const page = pageQuery.data?.page;
   const breadcrumbs = pageQuery.data?.breadcrumbs ?? [];
 
+  // Capabilities (default to read-only until access resolves so we never flash
+  // edit affordances to a viewer).
+  const access = accessQuery.data;
+  const canWrite = access?.canWrite ?? false;
+  const canComment = access?.canComment ?? false;
+  const canShare = access?.canShare ?? false;
+
   const [title, setTitle] = useState("");
   const [icon, setIcon] = useState("");
   const [cover, setCover] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [focusThreadId, setFocusThreadId] = useState<string | null>(null);
+  // A pending inline-anchor: when set, an anchored composer is shown.
+  const [pendingAnchor, setPendingAnchor] = useState<InlineCommentAnchor | null>(null);
 
   // Sync local edit fields when the loaded page changes.
   const pageKey = page ? `${page.id}:${page.title}:${page.icon}:${page.cover}` : null;
@@ -42,9 +61,10 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
 
   const commitMeta = useCallback(
     (patch: { title?: string; icon?: string | null; cover?: string | null }) => {
+      if (!canWrite) return;
       updatePage.mutate({ id: pageId, input: patch });
     },
-    [pageId, updatePage],
+    [pageId, updatePage, canWrite],
   );
 
   // The body is collaborative: a fresh Yjs doc + provider per page (offline via
@@ -59,12 +79,40 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
     [user?.displayName, user?.id],
   );
 
+  const onCommentOnSelection = useCallback((anchor: InlineCommentAnchor) => {
+    setPendingAnchor(anchor);
+    setCommentsOpen(true);
+  }, []);
+
   if (pageQuery.isLoading) {
     return <div className="page-view">Loading…</div>;
   }
   if (pageQuery.isError || !page) {
     return <div className="page-view">Could not load this page.</div>;
   }
+
+  const headerActions = (
+    <div className="page-actions" data-testid="page-actions">
+      <button
+        type="button"
+        className="page-action"
+        data-testid="toggle-comments"
+        onClick={() => setCommentsOpen((o) => !o)}
+      >
+        💬 Comments
+      </button>
+      {canShare ? (
+        <button
+          type="button"
+          className="page-action"
+          data-testid="open-share"
+          onClick={() => setShareOpen(true)}
+        >
+          Share
+        </button>
+      ) : null}
+    </div>
+  );
 
   // A database page renders its collection UI in place of the collab body.
   if (page.type === "database") {
@@ -86,11 +134,26 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
             className="title-input"
             placeholder="Untitled"
             value={title}
+            disabled={!canWrite}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => commitMeta({ title })}
           />
+          {headerActions}
         </header>
         <DatabaseView databaseId={page.id} workspaceId={workspaceId} />
+        {shareOpen ? (
+          <ShareDialog pageId={pageId} workspaceId={workspaceId} onClose={() => setShareOpen(false)} />
+        ) : null}
+        {commentsOpen ? (
+          <CommentsPanel
+            pageId={pageId}
+            workspaceId={workspaceId}
+            canComment={canComment}
+            canWrite={canWrite}
+            focusThreadId={focusThreadId}
+            onClose={() => setCommentsOpen(false)}
+          />
+        ) : null}
       </div>
     );
   }
@@ -116,6 +179,7 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
           className="icon-input"
           placeholder="🙂"
           value={icon}
+          disabled={!canWrite}
           onChange={(e) => setIcon(e.target.value)}
           onBlur={() => commitMeta({ icon: icon || null })}
         />
@@ -124,20 +188,24 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
           className="title-input"
           placeholder="Untitled"
           value={title}
+          disabled={!canWrite}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => commitMeta({ title })}
         />
+        {headerActions}
       </header>
 
-      <div className="cover-edit">
-        <input
-          aria-label="Cover URL"
-          placeholder="Cover image URL"
-          value={cover}
-          onChange={(e) => setCover(e.target.value)}
-          onBlur={() => commitMeta({ cover: cover || null })}
-        />
-      </div>
+      {canWrite ? (
+        <div className="cover-edit">
+          <input
+            aria-label="Cover URL"
+            placeholder="Cover image URL"
+            value={cover}
+            onChange={(e) => setCover(e.target.value)}
+            onBlur={() => commitMeta({ cover: cover || null })}
+          />
+        </div>
+      ) : null}
 
       <div className="presence-indicator" role="status" data-testid="presence-indicator">
         <span className={`presence-dot presence-dot--${status}`} aria-hidden="true" />
@@ -151,6 +219,8 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
           user={collabUser}
           workspaceId={workspaceId}
           onOpenPage={onNavigate}
+          editable={canWrite}
+          onCommentOnSelection={canComment ? onCommentOnSelection : undefined}
         />
       ) : null}
 
@@ -159,6 +229,54 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
         onOpenPage={onNavigate}
         loading={backlinksQuery.isLoading}
       />
+
+      {shareOpen ? (
+        <ShareDialog pageId={pageId} workspaceId={workspaceId} onClose={() => setShareOpen(false)} />
+      ) : null}
+
+      {commentsOpen ? (
+        <CommentsPanel
+          pageId={pageId}
+          workspaceId={workspaceId}
+          canComment={canComment}
+          canWrite={canWrite}
+          focusThreadId={focusThreadId}
+          onClose={() => {
+            setCommentsOpen(false);
+            setPendingAnchor(null);
+          }}
+        />
+      ) : null}
+
+      {pendingAnchor && canComment ? (
+        <div className="inline-comment-composer" data-testid="inline-comment-composer">
+          <p className="inline-comment-composer__quote">“{pendingAnchor.text}”</p>
+          <CommentComposer
+            workspaceId={workspaceId}
+            placeholder="Comment on selection…"
+            submitLabel="Add inline comment"
+            onSubmit={(body) => {
+              const anchor: BlockAnchor = {
+                blockId: pendingAnchor.blockId,
+                from: pendingAnchor.from,
+                to: pendingAnchor.to,
+              };
+              createComment.mutate(
+                { body, blockAnchor: anchor },
+                {
+                  onSuccess: (c) => {
+                    setFocusThreadId(c.threadId);
+                    setPendingAnchor(null);
+                  },
+                },
+              );
+            }}
+          />
+          <button type="button" onClick={() => setPendingAnchor(null)}>
+            Cancel
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
