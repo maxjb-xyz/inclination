@@ -31,7 +31,14 @@ afterEach(cleanup);
 describe("Editor (full block set)", () => {
   it("mounts the collaborative editor with the block extensions", () => {
     const session = makeFakeSession();
-    render(<Editor session={session} user={{ name: "Alice", color: "#abcdef" }} />);
+    render(
+      <Editor
+        session={session}
+        user={{ name: "Alice", color: "#abcdef" }}
+        workspaceId="ws1"
+        onOpenPage={() => {}}
+      />,
+    );
 
     const root = screen.getByTestId("editor");
     expect(root).toBeInTheDocument();
