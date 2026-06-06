@@ -47,23 +47,37 @@ export interface PublicUser {
  * Registration is rate-limited to 5/min per IP. Retry on 429 with a backoff so
  * the gate is not flaky under contention from the serial suite.
  */
+/**
+ * POST an auth endpoint, retrying on 429 with a backoff. The auth routes are
+ * rate-limited (5/min/IP) and the serial suite issues several auth calls within
+ * one window, so any single call can sit behind a full window. Retrying for
+ * well over 60s (12 × 8s ≈ 96s) clears the window rather than being flaky purely
+ * on rate limiting. `okStatus` is the success code to accept (201 register, 200
+ * verify/login).
+ */
+export async function postAuthWithRetry(
+  ctx: APIRequestContext,
+  path: string,
+  data: unknown,
+  okStatus: number,
+  label: string,
+) {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const res = await ctx.post(path, { data });
+    if (res.status() === okStatus) return res;
+    if (res.status() !== 429) {
+      throw new Error(`${label} failed with status ${res.status()}`);
+    }
+    await new Promise((r) => setTimeout(r, 8_000));
+  }
+  throw new Error(`${label} kept returning 429 after retries`);
+}
+
 export async function registerWithRetry(
   ctx: APIRequestContext,
   account: { email: string; password: string; displayName: string },
 ) {
-  // The limit is 5/min/IP. The serial suite issues ~5 registrations within one
-  // window, so the last test can sit behind a full window. Retry for well over
-  // 60s (12 × 8s ≈ 96s) so registration reliably clears the window rather than
-  // being flaky purely on rate limiting.
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const reg = await ctx.post("/api/auth/register", { data: account });
-    if (reg.status() === 201) return reg;
-    if (reg.status() !== 429) {
-      throw new Error(`register failed with status ${reg.status()}`);
-    }
-    await new Promise((r) => setTimeout(r, 8_000));
-  }
-  throw new Error("register kept returning 429 after retries");
+  return postAuthWithRetry(ctx, "/api/auth/register", account, 201, "register");
 }
 
 /** Registers, verifies via Mailpit, and logs in; returns the user + tokens. */
@@ -75,12 +89,18 @@ export async function registerVerifyLogin(
   expect(reg.status()).toBe(201);
 
   const verifyToken = await tokenFromMail(ctx, account.email, "verify-email");
-  expect(
-    (await ctx.post("/api/auth/verify-email", { data: { token: verifyToken } })).status(),
-  ).toBe(200);
+  // verify-email and login share the auth rate limiter (5/min/IP); the serial
+  // suite can exhaust the window, so retry these on 429 the same way register
+  // does rather than failing the gate on a transient limit.
+  await postAuthWithRetry(
+    ctx,
+    "/api/auth/verify-email",
+    { token: verifyToken },
+    200,
+    "verify-email",
+  );
 
-  const login = await ctx.post("/api/auth/login", { data: account });
-  expect(login.status()).toBe(200);
+  const login = await postAuthWithRetry(ctx, "/api/auth/login", account, 200, "login");
   const body = (await login.json()) as { user: PublicUser; tokens: Tokens };
   return body;
 }
