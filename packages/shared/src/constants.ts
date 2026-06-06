@@ -180,3 +180,44 @@ export type FilterOperator =
 export const ALL_FILTER_OPERATORS = Array.from(
   new Set(Object.values(FILTER_OPERATORS).flat()),
 ) as FilterOperator[];
+
+// ─────────────────────────────────────────────────────────────
+// Phase 7 — Files / uploads (spec §9: presigned uploads scoped to
+// workspace + content-type + size cap)
+// ─────────────────────────────────────────────────────────────
+
+/** Maximum upload size for a presigned PUT (25 MiB). */
+export const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Allowed upload content types (spec §9 content-type allowlist): common images
+ * plus everyday document formats. The presign endpoint rejects anything not in
+ * this set with 400. Kept deliberately conservative — the editor's media blocks
+ * (image/file/video) cover these.
+ */
+export const ALLOWED_UPLOAD_MIME_TYPES = [
+  // Images
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "image/avif",
+  // Video
+  "video/mp4",
+  "video/webm",
+  // Documents
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "application/zip",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+] as const;
+export type AllowedUploadMimeType = (typeof ALLOWED_UPLOAD_MIME_TYPES)[number];

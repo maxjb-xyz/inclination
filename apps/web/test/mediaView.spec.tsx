@@ -82,6 +82,10 @@ describe("MediaView commit-time guard", () => {
     fireEvent.change(input, { target: { value: "https://example.com/f.pdf" } });
     fireEvent.submit(input.closest("form")!);
 
-    expect(updateAttributes).toHaveBeenCalledWith({ src: "https://example.com/f.pdf" });
+    // Committing a URL also clears any stale attachmentId (URL takes over).
+    expect(updateAttributes).toHaveBeenCalledWith({
+      src: "https://example.com/f.pdf",
+      attachmentId: null,
+    });
   });
 });

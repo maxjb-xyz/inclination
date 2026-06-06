@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { WorkspacesModule } from "../workspaces/workspaces.module";
+import { SearchModule } from "../search/search.module";
 import {
   DatabasesController,
   PageConvertController,
@@ -25,7 +26,7 @@ import { QueryService } from "./query.service";
  * (T4), so every mutation fans out over socket.io to the `database:{id}` room.
  */
 @Module({
-  imports: [WorkspacesModule],
+  imports: [WorkspacesModule, SearchModule],
   controllers: [
     WorkspaceDatabasesController,
     DatabasesController,

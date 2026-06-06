@@ -7,6 +7,7 @@ import { liveness, readiness } from "./health.js";
 import {
   authenticatePage,
   fetchYdocState,
+  indexPageBody,
   jwtAccessSecret,
   maybeWriteSnapshot,
   storeYdocState,
@@ -58,6 +59,15 @@ export function createSyncServer(): SyncServer {
           } catch (err) {
             console.error(
               JSON.stringify({ level: "warn", msg: "snapshot write failed", error: String(err) }),
+            );
+          }
+          // Search index maintenance (spec §6): extract plain text and upsert the
+          // page's SearchIndex. Best-effort — failure must never break the store.
+          try {
+            await indexPageBody(prisma, documentName, state);
+          } catch (err) {
+            console.error(
+              JSON.stringify({ level: "warn", msg: "search index update failed", error: String(err) }),
             );
           }
         },

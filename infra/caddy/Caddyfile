@@ -21,6 +21,17 @@
 		reverse_proxy sync:3002
 	}
 
+	# MinIO object storage, exposed through the single entrypoint so presigned
+	# upload (PUT) / download (GET) URLs are reachable from the browser. The API
+	# signs presigned URLs against S3_PUBLIC_ENDPOINT=http://<host>:<port> with
+	# path-style addressing, so the bucket name is the FIRST path segment
+	# (`/inclination/...`). We forward that path UNCHANGED to MinIO (no prefix
+	# strip) so the request path matches what was signed — SigV4 signs the path,
+	# so any rewrite here would invalidate the signature.
+	handle /inclination/* {
+		reverse_proxy minio:9000
+	}
+
 	# Sync server health, exposed through the single entrypoint: /sync/health ->
 	# sync :3002 /health (handle_path strips the /sync prefix).
 	handle_path /sync/* {

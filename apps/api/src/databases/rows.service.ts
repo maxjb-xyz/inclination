@@ -15,6 +15,7 @@ import type { Prisma } from "@inclination/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { DatabaseAccessService } from "./database-access.service";
 import { DatabaseEventsService } from "./database-events.service";
+import { SearchIndexService } from "../search/search-index.service";
 import { computeSortKey } from "../pages/sort-key";
 
 /**
@@ -32,6 +33,7 @@ export class RowsService {
     private readonly prisma: PrismaService,
     private readonly access: DatabaseAccessService,
     private readonly events: DatabaseEventsService,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   private async siblings(parentId: string) {
@@ -167,6 +169,10 @@ export class RowsService {
       }
       await tx.page.update({ where: { id: rowPageId }, data: pageData });
     });
+
+    // Keep the row's searchable text current (spec §6): a row has no Yjs prose
+    // body, so its cells are its searchable body. Best-effort; never blocks.
+    await this.searchIndex.syncRowCells(rowPageId);
 
     this.events.emit({
       databaseId: database.pageId,

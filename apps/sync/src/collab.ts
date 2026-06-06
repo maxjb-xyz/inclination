@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { resolvePageAccess, type PageAccessPrisma } from "@inclination/db";
+import { extractPlainTextFromUpdate } from "./extract.js";
 
 /**
  * Pure, dependency-injected collaboration logic for the sync server.
@@ -131,6 +132,19 @@ export interface CollabPrisma {
       data: { pageId: string; ydocSnapshot: Bytes; authorId?: string | null };
     }): Promise<unknown>;
   };
+  page: {
+    findUnique(args: {
+      where: { id: string };
+      select: { workspaceId: true; title: true };
+    }): Promise<{ workspaceId: string; title: string } | null>;
+  };
+  searchIndex: {
+    upsert(args: {
+      where: { pageId: string };
+      create: { pageId: string; workspaceId: string; title: string; bodyText: string };
+      update: { workspaceId: string; title: string; bodyText: string };
+    }): Promise<unknown>;
+  };
 }
 
 /**
@@ -211,6 +225,41 @@ export async function maybeWriteSnapshot(
   lastWrites.set(pageId, now);
   await prisma.pageSnapshot.create({
     data: { pageId, ydocSnapshot: toBytes(state), authorId: options.authorId ?? null },
+  });
+  return true;
+}
+
+/**
+ * Maintain the page's full-text search index after a store (spec §6). Extracts
+ * plain text from the just-persisted Yjs state and upserts the page's
+ * SearchIndex row with the extracted body + the page's current title +
+ * workspace. The Postgres trigger recomputes the `tsv` column from those scalar
+ * fields, so we only set title/bodyText here.
+ *
+ * Resilient by contract: returns `false` (and never throws) for a malformed
+ * document name or a missing page, so the caller can treat indexing as
+ * best-effort and never let it break primary persistence. The body text is
+ * extracted defensively (a corrupt state yields "").
+ */
+export async function indexPageBody(
+  prisma: CollabPrisma,
+  documentName: string,
+  state: Uint8Array,
+): Promise<boolean> {
+  const pageId = documentNameToPageId(documentName);
+  if (!pageId) return false;
+
+  const page = await prisma.page.findUnique({
+    where: { id: pageId },
+    select: { workspaceId: true, title: true },
+  });
+  if (!page) return false;
+
+  const bodyText = extractPlainTextFromUpdate(state);
+  await prisma.searchIndex.upsert({
+    where: { pageId },
+    create: { pageId, workspaceId: page.workspaceId, title: page.title, bodyText },
+    update: { workspaceId: page.workspaceId, title: page.title, bodyText },
   });
   return true;
 }

@@ -2,6 +2,7 @@ import type { AnyExtension, BuildBlockExtensionsOptions } from "@inclination/edi
 import { buildBlockExtensions } from "@inclination/editor";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { EquationView } from "./EquationView";
+import { ImageView } from "./ImageView";
 import { MediaView } from "./MediaView";
 import { MentionView } from "./MentionView";
 import { PageLinkView } from "./PageLinkView";
@@ -11,6 +12,22 @@ import { DatabaseNodeView } from "./DatabaseNodeView";
 
 /** Node names that get a rich React NodeView in the web app. */
 const MEDIA_NODES = new Set(["fileBlock", "videoBlock", "bookmark", "embed"]);
+
+/**
+ * The `attachmentId` attribute persisted on media/image nodes for uploads. It
+ * round-trips through Yjs so an uploaded file survives reload (the view then
+ * resolves a fresh presigned URL from this id). URL-only nodes leave it null.
+ */
+const attachmentIdAttr = {
+  attachmentId: {
+    default: null as string | null,
+    parseHTML: (element: HTMLElement) => element.getAttribute("data-attachment-id"),
+    renderHTML: (attributes: Record<string, unknown>) =>
+      attributes.attachmentId
+        ? { "data-attachment-id": attributes.attachmentId as string }
+        : {},
+  },
+};
 
 /**
  * Build the editor's extension set for the web: the shared §7 block set from
@@ -39,8 +56,22 @@ export function buildWebExtensions(opts: BuildBlockExtensionsOptions = {}): AnyE
     if (ext.name === "pageLink") {
       return ext.extend({ addNodeView: () => ReactNodeViewRenderer(PageLinkView) });
     }
+    if (ext.name === "image") {
+      // Attach an upload-capable NodeView + the persisted `attachmentId` attr.
+      return ext.extend({
+        addAttributes() {
+          return { ...this.parent?.(), ...attachmentIdAttr };
+        },
+        addNodeView: () => ReactNodeViewRenderer(ImageView),
+      });
+    }
     if (MEDIA_NODES.has(ext.name)) {
-      return ext.extend({ addNodeView: () => ReactNodeViewRenderer(MediaView) });
+      return ext.extend({
+        addAttributes() {
+          return { ...this.parent?.(), ...attachmentIdAttr };
+        },
+        addNodeView: () => ReactNodeViewRenderer(MediaView),
+      });
     }
     return ext;
   });

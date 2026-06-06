@@ -12,6 +12,9 @@ import { MailModule } from "./mail/mail.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { PagesModule } from "./pages/pages.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { SearchModule } from "./search/search.module";
+import { FilesModule } from "./files/files.module";
+import { SnapshotsModule } from "./snapshots/snapshots.module";
 import { SharingModule } from "./sharing/sharing.module";
 import { PrismaService } from "./prisma/prisma.service";
 import { StorageService } from "./storage/storage.service";
@@ -32,6 +35,9 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     CommentsModule,
     NotificationsModule,
     SharingModule,
+    SearchModule,
+    FilesModule,
+    SnapshotsModule,
   ],
   controllers: [HealthController],
   providers: [

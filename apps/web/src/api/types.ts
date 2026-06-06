@@ -68,3 +68,42 @@ export interface Backlink {
   title: string;
   icon: string | null;
 }
+
+/** A full-text search hit from `GET /workspaces/:wsId/search?q=`. */
+export interface SearchResult {
+  pageId: string;
+  title: string;
+  /** Snippet with matches wrapped in `[[` … `]]` highlight markers. */
+  snippet: string;
+  rank: number;
+}
+
+/** Response of `POST /workspaces/:wsId/uploads/presign`. */
+export interface PresignResult {
+  /** Presigned PUT URL — client uploads bytes here with the same Content-Type. */
+  uploadUrl: string;
+  objectKey: string;
+  attachmentId: string;
+  /** Stable path the served URL can be resolved from. */
+  downloadPath: string;
+}
+
+/** Response of `GET /attachments/:id`. */
+export interface AttachmentUrl {
+  url: string;
+}
+
+/** A version-history entry from `GET /pages/:id/snapshots`. */
+export interface Snapshot {
+  id: string;
+  label: string | null;
+  authorId: string | null;
+  createdAt: string;
+}
+
+/** A snapshot's preview content from `GET /pages/:id/snapshots/:snapId`. */
+export interface SnapshotContent {
+  text: string;
+  decoded: boolean;
+  doc: Record<string, unknown> | null;
+}
