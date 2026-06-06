@@ -102,6 +102,10 @@ services:
     environment:
       SYNC_PORT: "3002"
       DATABASE_URL: ${DATABASE_URL}
+      # Must match the API's signing secret: the sync server verifies the same
+      # access tokens the API mints. Without this it falls back to the built-in
+      # default and rejects every collab connection ("invalid signature").
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,7 +1,9 @@
 import { envInt } from "@inclination/shared";
+import { assertSyncSecretsAreSafe } from "./collab.js";
 import { createSyncServer } from "./server.js";
 
 async function bootstrap(): Promise<void> {
+  assertSyncSecretsAreSafe();
   const server = createSyncServer();
   const port = envInt("SYNC_PORT", 3002);
   await server.listen(port);

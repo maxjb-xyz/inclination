@@ -20,6 +20,24 @@ export function jwtAccessSecret(): string {
   return process.env.JWT_ACCESS_SECRET ?? DEFAULT_JWT_ACCESS_SECRET;
 }
 
+const WEAK_SECRETS = new Set(["", DEFAULT_JWT_ACCESS_SECRET, "change-me"]);
+
+/**
+ * Fail fast in production if the sync server's JWT secret is empty/weak. The
+ * sync server MUST share the API's secret to verify access tokens; a silent
+ * dev-default fallback previously made every collab connection reject with
+ * "invalid signature". Guarding here surfaces the misconfiguration loudly and
+ * mirrors the API's own guard (spec §9: same authz, secrets via env).
+ */
+export function assertSyncSecretsAreSafe(): void {
+  if (process.env.NODE_ENV === "production" && WEAK_SECRETS.has(jwtAccessSecret())) {
+    throw new Error(
+      "JWT_ACCESS_SECRET must be set to a strong, unique value in production " +
+        "(it must match the API's secret so the sync server can verify access tokens).",
+    );
+  }
+}
+
 /**
  * Parse the page id out of a Hocuspocus document name. Returns null for any
  * value that is not exactly `page:{nonEmptyId}` so malformed names are rejected
