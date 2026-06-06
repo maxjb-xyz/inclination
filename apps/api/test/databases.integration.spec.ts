@@ -402,6 +402,41 @@ describe("Databases (integration)", () => {
     expect(sortedIds).toEqual([taskB, taskA]);
   });
 
+  it("returns 400 (not 500) for a schema-valid but type-mismatched filter operator", async () => {
+    // `before` is a valid operator in the flattened union (a date operator), so
+    // shared/Zod accepts it — but it is meaningless on a text property. The
+    // filter engine throws FilterError; the query service must translate that
+    // into a 400, not let it surface as an unhandled 500.
+    const bad = await request(http)
+      .post(`/api/databases/${tasksDbId}/query`)
+      .set("authorization", auth(access))
+      .send({
+        config: {
+          filters: {
+            conjunction: "and",
+            conditions: [{ propertyId: tasksNamePropId, operator: "before", value: "2026-01-01" }],
+          },
+        },
+      });
+    expect(bad.status).toBe(400);
+
+    // A valid filter on the same property still succeeds with rows.
+    const ok = await request(http)
+      .post(`/api/databases/${tasksDbId}/query`)
+      .set("authorization", auth(access))
+      .send({
+        config: {
+          filters: {
+            conjunction: "and",
+            conditions: [{ propertyId: tasksNamePropId, operator: "is_not_empty" }],
+          },
+        },
+      });
+    expect(ok.status).toBe(201);
+    expect(Array.isArray(ok.body.rows)).toBe(true);
+    expect(ok.body.rows.length).toBeGreaterThan(0);
+  });
+
   it("groups rows by status", async () => {
     const grouped = await request(http)
       .post(`/api/databases/${tasksDbId}/query`)

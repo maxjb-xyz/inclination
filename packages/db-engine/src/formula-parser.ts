@@ -132,8 +132,19 @@ function tokenize(src: string): Token[] {
   return tokens;
 }
 
+/**
+ * Maximum nesting depth of grouped/recursive sub-expressions. Each `(...)` or
+ * function-call argument re-enters the grammar at {@link Parser.parseOr}; this
+ * bounds that recursion so a deeply nested expression throws a
+ * {@link FormulaParseError} rather than overflowing the JS call stack. The cap
+ * is independent of the 10k char input length so the parser's "never overflow"
+ * contract holds regardless of how compact the input is.
+ */
+const MAX_NESTING_DEPTH = 64;
+
 class Parser {
   private pos = 0;
+  private depth = 0;
   constructor(private readonly tokens: Token[]) {}
 
   private peek(): Token {
@@ -163,13 +174,20 @@ class Parser {
   }
 
   private parseOr(): Ast {
-    let left = this.parseAnd();
-    while (this.matchKeyword("or") || (this.peek().type === "op" && this.peek().value === "||")) {
-      this.next();
-      const right = this.parseAnd();
-      left = { kind: "binary", op: "or", left, right };
+    if (++this.depth > MAX_NESTING_DEPTH) {
+      throw new FormulaParseError(`expression nested too deeply (max ${MAX_NESTING_DEPTH})`);
     }
-    return left;
+    try {
+      let left = this.parseAnd();
+      while (this.matchKeyword("or") || (this.peek().type === "op" && this.peek().value === "||")) {
+        this.next();
+        const right = this.parseAnd();
+        left = { kind: "binary", op: "or", left, right };
+      }
+      return left;
+    } finally {
+      this.depth--;
+    }
   }
 
   private parseAnd(): Ast {

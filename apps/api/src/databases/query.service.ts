@@ -3,6 +3,10 @@ import {
   evaluateFilter,
   groupRows,
   sortRows,
+  FilterError,
+  RollupError,
+  FormulaParseError,
+  FormulaEvalError,
   type CellValue,
   type FilterContext,
   type GroupAccessors,
@@ -114,65 +118,82 @@ export class QueryService {
     }));
     const computer = new RowComputer(resolverProps, now);
     const computedByRow = new Map<string, ComputedValues>();
-    for (const row of loaded) {
-      computedByRow.set(row.pageId, computer.compute(toResolverRow(row), targets));
-    }
-
-    // Accessor helpers shared by filter/sort/group — resolve a property's value
-    // for a row, preferring computed values for computed/relation types.
-    const valueFor = (row: LoadedRow, propertyId: string): CellValue => {
-      const prop = propById.get(propertyId);
-      if (!prop) return null;
-      const type = prop.type as PropertyType;
-      if (isComputedOrRelation(type)) {
-        const c = computedByRow.get(row.pageId)?.[propertyId];
-        return computedToCellValue(c);
-      }
-      return row.cells[propertyId] ?? null;
-    };
-    const typeFor = (propertyId: string): PropertyType =>
-      (propById.get(propertyId)?.type as PropertyType) ?? "text";
-
-    // ── Filter ──
-    let working = loaded;
-    if (config.filters) {
-      working = working.filter((row) => {
-        const ctx: FilterContext = {
-          now,
-          getValue: (pid) => valueFor(row, pid),
-          getType: typeFor,
-        };
-        return evaluateFilter(config.filters!, ctx);
-      });
-    }
-
-    // ── Sort ──
-    if (config.sorts && config.sorts.length > 0) {
-      const sortAcc: SortAccessors<LoadedRow> = {
-        getValue: (row, pid) => valueFor(row, pid),
-        getType: typeFor,
-        getOptionOrder: (pid, optionId) => optionOrder(propById.get(pid), optionId),
-      };
-      working = sortRows(working, config.sorts, sortAcc);
-    }
-
-    // ── Group (optional) ──
+    // Engine evaluation (compute → filter → sort → group) can throw on input
+    // that is schema-valid but semantically wrong for a property type (e.g. a
+    // `before` filter operator on a text property). Translate those engine
+    // errors into a 400 rather than letting them bubble up as an unhandled 500.
     let groups: QueryRowsResult["groups"];
-    if (config.groupBy) {
-      const groupAcc: GroupAccessors<LoadedRow> = {
-        getValue: (row, pid) => valueFor(row, pid),
-        getType: typeFor,
-        getGroupOrder: (pid) => optionOrderList(propById.get(pid)),
+    let working: LoadedRow[] = loaded;
+    try {
+      for (const row of loaded) {
+        computedByRow.set(row.pageId, computer.compute(toResolverRow(row), targets));
+      }
+
+      // Accessor helpers shared by filter/sort/group — resolve a property's
+      // value for a row, preferring computed values for computed/relation types.
+      const valueFor = (row: LoadedRow, propertyId: string): CellValue => {
+        const prop = propById.get(propertyId);
+        if (!prop) return null;
+        const type = prop.type as PropertyType;
+        if (isComputedOrRelation(type)) {
+          const c = computedByRow.get(row.pageId)?.[propertyId];
+          return computedToCellValue(c);
+        }
+        return row.cells[propertyId] ?? null;
       };
-      const grouped: RowGroup<LoadedRow>[] = groupRows(working, config.groupBy, groupAcc, {
-        includeEmptyGroups: true,
-      });
-      groups = grouped.map((g) => ({
-        key: g.key,
-        label: g.label,
-        isEmpty: g.isEmpty,
-        pageIds: g.rows.map((r) => r.pageId),
-      }));
+      const typeFor = (propertyId: string): PropertyType =>
+        (propById.get(propertyId)?.type as PropertyType) ?? "text";
+
+      // ── Filter ──
+      working = loaded;
+      if (config.filters) {
+        working = working.filter((row) => {
+          const ctx: FilterContext = {
+            now,
+            getValue: (pid) => valueFor(row, pid),
+            getType: typeFor,
+          };
+          return evaluateFilter(config.filters!, ctx);
+        });
+      }
+
+      // ── Sort ──
+      if (config.sorts && config.sorts.length > 0) {
+        const sortAcc: SortAccessors<LoadedRow> = {
+          getValue: (row, pid) => valueFor(row, pid),
+          getType: typeFor,
+          getOptionOrder: (pid, optionId) => optionOrder(propById.get(pid), optionId),
+        };
+        working = sortRows(working, config.sorts, sortAcc);
+      }
+
+      // ── Group (optional) ──
+      if (config.groupBy) {
+        const groupAcc: GroupAccessors<LoadedRow> = {
+          getValue: (row, pid) => valueFor(row, pid),
+          getType: typeFor,
+          getGroupOrder: (pid) => optionOrderList(propById.get(pid)),
+        };
+        const grouped: RowGroup<LoadedRow>[] = groupRows(working, config.groupBy, groupAcc, {
+          includeEmptyGroups: true,
+        });
+        groups = grouped.map((g) => ({
+          key: g.key,
+          label: g.label,
+          isEmpty: g.isEmpty,
+          pageIds: g.rows.map((r) => r.pageId),
+        }));
+      }
+    } catch (err) {
+      if (
+        err instanceof FilterError ||
+        err instanceof RollupError ||
+        err instanceof FormulaParseError ||
+        err instanceof FormulaEvalError
+      ) {
+        throw new BadRequestException(`Invalid filter/sort for property type: ${err.message}`);
+      }
+      throw err;
     }
 
     // ── Paginate the flat ordered list ──

@@ -47,6 +47,19 @@ describe("parser", () => {
     expect(() => parseFormula("1 2")).toThrow(FormulaParseError);
     expect(() => parseFormula("prop(1)")).toThrow(FormulaParseError);
   });
+  it("rejects an over-nested expression with FormulaParseError", () => {
+    // 200 levels of parenthesisation exceeds the depth cap (64); the parser
+    // must throw rather than relying on a JS stack overflow.
+    const deep = `${"(".repeat(200)}1${")".repeat(200)}`;
+    expect(() => parseFormula(deep)).toThrow(FormulaParseError);
+    expect(() => parseFormula(deep)).toThrow(/nested too deeply/);
+  });
+  it("parses a normally-nested expression", () => {
+    // 10 levels is well within the cap and must parse fine.
+    const expr = `${"(".repeat(10)}1 + 2${")".repeat(10)}`;
+    expect(() => parseFormula(expr)).not.toThrow();
+    expect(parseFormula(expr)).toMatchObject({ kind: "binary", op: "+" });
+  });
 });
 
 describe("arithmetic", () => {
