@@ -5,7 +5,7 @@ Single source of truth for build state. One entry per phase (and per significant
 ## Phase Checklist
 
 - [x] **Phase 0 — Foundation** — monorepo, Docker Compose, CI, `/health` + `/ready`
-- [ ] **Phase 1 — Auth & workspaces**
+- [x] **Phase 1 — Auth & workspaces**
 - [ ] **Phase 2 — Page tree & single-user editor**
 - [ ] **Phase 3 — Real-time collaboration**
 - [ ] **Phase 4 — Full block editor**
@@ -64,3 +64,35 @@ Single source of truth for build state. One entry per phase (and per significant
 - Plan: [`plans/phase-0-foundation-plan.md`](plans/phase-0-foundation-plan.md)
 - Branch `phase-0-foundation` → merged to `main` (local), tag `phase-0-complete`.
 - Commits: scaffold, infra/CI/e2e, review fixes, journal.
+
+---
+
+## Phase 1 — Auth & Workspaces
+
+**Status:** ✅ complete (2026-06-05)
+
+**Plan:** [`plans/phase-1-auth-workspaces-plan.md`](plans/phase-1-auth-workspaces-plan.md)
+
+**What was built**
+- Data model (spec §5): `User`, `Workspace`, `WorkspaceMember`, `Invitation`, `RefreshToken`, `EmailVerificationToken`, `PasswordResetToken`, `WorkspaceRole` enum; migration `20260605231634_auth_workspaces`.
+- Shared: Zod schemas for all auth/workspace requests.
+- API (NestJS): `PasswordService` (argon2id); `TokenService` (access JWT + DB-backed rotating refresh, reuse-detection revokes the whole chain); `AuthService`/`AuthController` (register + email verification, login gated on verification, refresh, logout, password reset that doesn't leak existence + revokes sessions, `/auth/me`); JWT passport guard + `@CurrentUser`; throttled auth routes; CORS locked. OIDC (`OidcService`/`OidcController`): discovery, browser-bound state+nonce (HttpOnly cookie), code exchange, RS256 id_token verification via JWKS, `email_verified`-gated user upsert/link, redirect-to-SPA. Users profile (`GET/PATCH /users/me`). Workspaces (create→owner, list/get/update/members) + Invitations (invite owner/admin-only, email-matched accept, list pending) with membership/role guards.
+- Mail: transport-agnostic `MailService` (SMTP via nodemailer; in-memory `CapturingTransport` for dev/tests).
+- Web: auth client, persisted Zustand session store, login/register forms + signed-in view.
+- Production secret guard: API refuses to boot with `NODE_ENV=production` and an empty/known-weak `JWT_ACCESS_SECRET`.
+
+**Gate evidence** ("register → verify → create workspace → invite member → both log in; OIDC against a test provider")
+- Lint + typecheck clean. Unit: 12 shared + 22 api + 3 sync + 3 web. Integration (Testcontainers Postgres + in-process **mock OIDC** with real RS256/JWKS): 8 — full register→verify→login→refresh-rotate(+reuse-reject)→workspace→invite→accept and OIDC (incl. no-cookie→401 CSRF check). E2E (Playwright through Caddy + Mailpit overlay): 4 — phase-0 health + the phase-1 register→verify→login→workspace→invite→accept flow.
+- Clean `docker compose up` (with secret guard active, NODE_ENV=production) boots all services healthy.
+
+**Decisions / deviations**
+- OIDC implemented with `jsonwebtoken` + `jwks-rsa` (not the plan's `openid-client`) to stay CJS-friendly in the Nest app; full discovery + JWKS signature + iss/aud/nonce verification retained.
+- OIDC covered rigorously at the **integration layer** (real signature verification against the mock issuer); e2e (compose) covers the email/password + workspace + invite flow. Rationale: OIDC needs an external provider; an in-process mock is the right test seam, and a dockerized IdP in compose was out of proportion for the gate.
+- Mail uses an in-memory capture transport for tests; a `docker-compose.e2e.yml` overlay adds Mailpit so the e2e reads real verification/invite emails (prod compose stays clean).
+- Adversarial review found 2 CRITICAL (OIDC state CSRF; weak default JWT secret) + 2 MATERIAL (email_verified linking; JSON-on-navigation); all fixed and re-verified by an independent reviewer before merge.
+
+**Follow-ups (deferred to Phase 9 hardening)**
+- Throttle OIDC routes; use a one-time handoff code instead of token-in-fragment; separate signing key for the OIDC tx cookie; constant-time/throttled token lookups; reduce password-reset timing oracle; HttpOnly-cookie refresh option; quick-start that generates secrets so `cp .env.example .env && docker compose up` works without manual secret-gen.
+
+**References**
+- Branch `phase-1-auth-workspaces` → merged to `main` (local), tag `phase-1-complete`.

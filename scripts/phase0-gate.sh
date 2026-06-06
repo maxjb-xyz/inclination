@@ -19,6 +19,10 @@ cleanup() {
 trap cleanup EXIT
 
 [ -f .env ] || cp .env.example .env
+# The containers run NODE_ENV=production, which requires a real JWT secret.
+if ! grep -q '^JWT_ACCESS_SECRET=.\+' .env; then
+  echo "JWT_ACCESS_SECRET=$(head -c 48 /dev/urandom | base64 | tr -d '\n')" >> .env
+fi
 
 echo "=== building + starting stack ==="
 docker compose up -d --build

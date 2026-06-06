@@ -1,0 +1,18 @@
+# E2E overlay: adds a Mailpit mail catcher so end-to-end tests can read the
+# verification / invitation emails the API sends. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+# Production compose (docker-compose.yml) stays free of test-only services.
+
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+
+  api:
+    environment:
+      SMTP_URL: smtp://mailpit:1025
+    depends_on:
+      mailpit:
+        condition: service_started
