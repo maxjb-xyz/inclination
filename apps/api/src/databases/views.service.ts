@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import type { CreateViewInput, UpdateViewInput } from "@inclination/shared";
 import type { Prisma } from "@inclination/db";
 import { PrismaService } from "../prisma/prisma.service";

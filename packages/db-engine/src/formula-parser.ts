@@ -25,8 +25,6 @@ interface Token {
   pos: number;
 }
 
-const KEYWORDS = new Set(["true", "false", "and", "or", "not"]);
-
 function tokenize(src: string): Token[] {
   const tokens: Token[] = [];
   let i = 0;
