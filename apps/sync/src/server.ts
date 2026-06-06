@@ -1,8 +1,16 @@
 import { createServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from "node:http";
 import { Server as Hocuspocus } from "@hocuspocus/server";
+import { Database } from "@hocuspocus/extension-database";
 import { getPrisma } from "@inclination/db";
 import { WebSocketServer } from "ws";
 import { liveness, readiness } from "./health.js";
+import {
+  authenticatePage,
+  fetchYdocState,
+  jwtAccessSecret,
+  maybeWriteSnapshot,
+  storeYdocState,
+} from "./collab.js";
 
 export interface SyncServer {
   http: HttpServer;
@@ -12,13 +20,50 @@ export interface SyncServer {
 
 /**
  * Build the sync server: a plain HTTP server answering /health and /ready, plus
- * a Hocuspocus Yjs websocket endpoint mounted at /collab. Real per-page auth and
- * Yjs persistence are added in Phase 3; for now the websocket endpoint simply
- * accepts connections so the process is wired end to end.
+ * a Hocuspocus Yjs websocket endpoint mounted at /collab.
+ *
+ * Authorization is enforced per page via the SAME shared resolver the API uses
+ * (spec §9): the JWT identifies the user, the document name (`page:{id}`)
+ * identifies the page, and `resolvePageAccess` decides read/write. Persistence
+ * is handled by the Database extension, which debounces stores; we additionally
+ * write throttled PageSnapshot rows for future version history.
  */
 export function createSyncServer(): SyncServer {
   const prisma = getPrisma();
-  const hocuspocus = Hocuspocus.configure({});
+  const secret = jwtAccessSecret();
+  // Per-page timestamp of the last snapshot, used to throttle snapshot writes.
+  const lastSnapshotAt = new Map<string, number>();
+
+  const hocuspocus = Hocuspocus.configure({
+    async onAuthenticate({ token, documentName, connection }) {
+      const result = await authenticatePage({ prisma, secret }, token, documentName);
+      // Read-only connections may sync but cannot push updates (no edit access).
+      if (result.readOnly) {
+        connection.readOnly = true;
+      }
+      return result.context;
+    },
+    extensions: [
+      new Database({
+        fetch: ({ documentName }) => fetchYdocState(prisma, documentName),
+        store: async ({ documentName, state, context }) => {
+          await storeYdocState(prisma, documentName, state);
+          // Snapshot groundwork: best-effort, throttled, never breaks the store.
+          try {
+            const authorId =
+              context && typeof (context as { userId?: unknown }).userId === "string"
+                ? (context as { userId: string }).userId
+                : null;
+            await maybeWriteSnapshot(prisma, documentName, state, lastSnapshotAt, { authorId });
+          } catch (err) {
+            console.error(
+              JSON.stringify({ level: "warn", msg: "snapshot write failed", error: String(err) }),
+            );
+          }
+        },
+      }),
+    ],
+  });
 
   const http = createServer((req, res) => {
     void handleHttp(req, res);

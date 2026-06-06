@@ -141,6 +141,9 @@ importers:
 
   apps/sync:
     dependencies:
+      '@hocuspocus/extension-database':
+        specifier: ^2.15.3
+        version: 2.15.3(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@hocuspocus/server':
         specifier: ^2.15.2
         version: 2.15.3(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
@@ -150,10 +153,22 @@ importers:
       '@inclination/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      jsonwebtoken:
+        specifier: ^9.0.3
+        version: 9.0.3
       ws:
         specifier: ^8.18.0
         version: 8.21.0
+      yjs:
+        specifier: ^13.6.31
+        version: 13.6.31
     devDependencies:
+      '@testcontainers/postgresql':
+        specifier: ^10.28.0
+        version: 10.28.0
+      '@types/jsonwebtoken':
+        specifier: ^9.0.10
+        version: 9.0.10
       '@types/node':
         specifier: ^22.10.5
         version: 22.19.19
@@ -936,6 +951,11 @@ packages:
 
   '@hocuspocus/common@2.15.3':
     resolution: {integrity: sha512-Rzh1HF0a2o/tf90A3w2XNdXd9Ym3aQzMDfD3lAUONCX9B9QOdqdyiORrj6M25QEaJrEIbXFy8LtAFcL0wRdWzA==}
+
+  '@hocuspocus/extension-database@2.15.3':
+    resolution: {integrity: sha512-+PVlPwfdVyOase68WEBb105ZwglhCLVeGpyNa3uwnmH+Ers7OKGLma2SDMKn3Vcb5oHzTzEGx7jNt+32KTEKXA==}
+    peerDependencies:
+      yjs: ^13.6.8
 
   '@hocuspocus/server@2.15.3':
     resolution: {integrity: sha512-Ju4ty4/7JtmvivcP7gKReOLf8KrFwN7Yx/5VhXYh4TRULy4kSo2fsDVUaluPp0neZa6PbVhizJuzlOim73IEbQ==}
@@ -5138,6 +5158,15 @@ snapshots:
   '@hocuspocus/common@2.15.3':
     dependencies:
       lib0: 0.2.117
+
+  '@hocuspocus/extension-database@2.15.3(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
+    dependencies:
+      '@hocuspocus/server': 2.15.3(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      yjs: 13.6.31
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - y-protocols
 
   '@hocuspocus/server@2.15.3(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:

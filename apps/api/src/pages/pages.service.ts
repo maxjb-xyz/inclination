@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -11,6 +12,7 @@ import type {
   UpdatePageInput,
 } from "@inclination/shared";
 import type { Page, Prisma } from "@inclination/db";
+import { resolvePageAccess } from "@inclination/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { WorkspacesService } from "../workspaces/workspaces.service";
 import { computeSortKey, type SortableSibling } from "./sort-key";
@@ -29,10 +31,19 @@ export class PagesService {
     return page;
   }
 
-  /** Loads the page and asserts the caller is a member of its workspace. */
+  /**
+   * Loads the page (404 if missing) and asserts the caller may access it, using
+   * the SAME shared resolver the sync server uses (spec §9) so API and sync
+   * authorization cannot drift. `resolvePageAccess` returns null for both a
+   * missing page and a non-member; since `loadPage` already 404s on a missing
+   * page, a null here means "not a member" → 403 (preserving prior behavior).
+   */
   private async requirePageAccess(userId: string, id: string): Promise<Page> {
     const page = await this.loadPage(id);
-    await this.workspaces.requireMember(userId, page.workspaceId);
+    const access = await resolvePageAccess(this.prisma, userId, id);
+    if (!access) {
+      throw new ForbiddenException("You are not a member of this workspace");
+    }
     return page;
   }
 
