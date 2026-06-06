@@ -10,6 +10,8 @@ import { createPagesApi } from "../api/pagesApi";
 import { buildWebExtensions } from "../editor/extensions";
 import { BlockHandle } from "../editor/BlockHandle";
 import { OpenPageContext, type OpenPageHandler } from "../editor/openPageContext";
+import { DatabaseEditorContext } from "../editor/databaseContext";
+import { createDbApi } from "../databases/dbApi";
 import {
   buildMentionSuggestion,
   buildPageLinkSuggestion,
@@ -17,6 +19,7 @@ import {
 import { useReferenceSync } from "../editor/useReferenceSync";
 
 const pagesApi = createPagesApi(apiClient);
+const dbApi = createDbApi(apiClient);
 
 export interface CollabUser {
   /** Display name shown on the remote caret label. */
@@ -97,12 +100,30 @@ export function Editor({
   // Sync referenced page ids (backlinks) to the API on debounced doc changes.
   useReferenceSync(editor, session.pageId, (id, ids) => pagesApi.putReferences(id, ids));
 
+  // Context for inline database blocks: create a new database parented under
+  // this page, returning its id for the node to render.
+  const databaseContext = useMemo(
+    () => ({
+      workspaceId,
+      createDatabase: async (): Promise<string> => {
+        const db = await dbApi.createDatabase(workspaceIdRef.current, {
+          parentId: session.pageId,
+          title: "Untitled database",
+        });
+        return db.pageId;
+      },
+    }),
+    [workspaceId, session.pageId],
+  );
+
   return (
     <OpenPageContext.Provider value={onOpenPage}>
-      <div className="editor" data-testid="editor">
-        {editor ? <BlockHandle editor={editor} /> : null}
-        <EditorContent editor={editor} />
-      </div>
+      <DatabaseEditorContext.Provider value={databaseContext}>
+        <div className="editor" data-testid="editor">
+          {editor ? <BlockHandle editor={editor} /> : null}
+          <EditorContent editor={editor} />
+        </div>
+      </DatabaseEditorContext.Provider>
     </OpenPageContext.Provider>
   );
 }

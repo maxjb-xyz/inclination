@@ -6,6 +6,8 @@ import { MediaView } from "./MediaView";
 import { MentionView } from "./MentionView";
 import { PageLinkView } from "./PageLinkView";
 import { SlashMenu } from "./slashSuggestion";
+import { DatabaseViewNode } from "./databaseNode";
+import { DatabaseNodeView } from "./DatabaseNodeView";
 
 /** Node names that get a rich React NodeView in the web app. */
 const MEDIA_NODES = new Set(["fileBlock", "videoBlock", "bookmark", "embed"]);
@@ -43,5 +45,11 @@ export function buildWebExtensions(opts: BuildBlockExtensionsOptions = {}): AnyE
     return ext;
   });
 
-  return [...withNodeViews, SlashMenu];
+  // The inline/linked database block is web-only (it embeds the live database
+  // UI), so it is added here rather than in the shared package.
+  const databaseNode = DatabaseViewNode.extend({
+    addNodeView: () => ReactNodeViewRenderer(DatabaseNodeView),
+  });
+
+  return [...withNodeViews, databaseNode, SlashMenu];
 }

@@ -6,6 +6,7 @@ import { useBacklinks, usePage, useUpdatePage } from "./queries";
 import { useAuthStore } from "../auth/authStore";
 import { useCollabSession } from "../collab/useCollabSession";
 import { colorForUserId } from "../collab/color";
+import { DatabaseView } from "../databases/DatabaseView";
 
 export interface PageViewProps {
   workspaceId: string;
@@ -63,6 +64,35 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   }
   if (pageQuery.isError || !page) {
     return <div className="page-view">Could not load this page.</div>;
+  }
+
+  // A database page renders its collection UI in place of the collab body.
+  if (page.type === "database") {
+    return (
+      <div className="page-view">
+        <nav className="breadcrumbs" aria-label="Breadcrumbs">
+          {breadcrumbs.map((b: Page) => (
+            <button key={b.id} type="button" className="crumb" onClick={() => onNavigate(b.id)}>
+              {b.icon ?? "\u{1F5C3}\u{FE0F}"} {b.title || "Untitled"}
+            </button>
+          ))}
+          <span className="crumb current">
+            {page.icon ?? "\u{1F5C3}\u{FE0F}"} {page.title || "Untitled"}
+          </span>
+        </nav>
+        <header className="page-header">
+          <input
+            aria-label="Page title"
+            className="title-input"
+            placeholder="Untitled"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => commitMeta({ title })}
+          />
+        </header>
+        <DatabaseView databaseId={page.id} workspaceId={workspaceId} />
+      </div>
+    );
   }
 
   return (
