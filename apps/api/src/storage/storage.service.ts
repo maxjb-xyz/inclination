@@ -14,22 +14,45 @@ import type { HealthProbe } from "../health/checks";
 @Injectable()
 export class StorageService implements HealthProbe {
   readonly name = "minio";
+  /** Client bound to the INTERNAL endpoint: used for bucket ops + health. */
   private readonly client: S3Client;
+  /**
+   * Client bound to the BROWSER-REACHABLE (public) endpoint, used ONLY to sign
+   * presigned PUT/GET URLs. SigV4 query-string presigning signs the `host`
+   * header into the signature, so the URL host the browser uses must match the
+   * host the URL was signed for. The internal endpoint (e.g. `minio:9000`) is a
+   * Docker-network hostname the browser cannot resolve, so presigned URLs are
+   * signed against `S3_PUBLIC_ENDPOINT` (routed to MinIO through Caddy). Falls
+   * back to the internal endpoint when no public endpoint is configured.
+   */
+  private readonly presignClient: S3Client;
   private readonly bucket: string;
   /** Memoized bucket-existence promise so we ensure the bucket at most once. */
   private bucketReady?: Promise<void>;
 
   constructor() {
     this.bucket = envOrDefault("MINIO_BUCKET", "inclination");
+    const region = envOrDefault("S3_REGION", "us-east-1");
+    const forcePathStyle = envBool("S3_FORCE_PATH_STYLE", true);
+    const credentials = {
+      accessKeyId: envOrDefault("S3_ACCESS_KEY", "inclination"),
+      secretAccessKey: envOrDefault("S3_SECRET_KEY", "inclination_dev_pw"),
+    };
+    const internalEndpoint = envOrDefault("S3_ENDPOINT", "http://localhost:9000");
+    // When unset, presign against the internal endpoint (dev where MinIO is
+    // published on localhost). In compose, S3_PUBLIC_ENDPOINT points the browser
+    // at MinIO through Caddy so presigned uploads/downloads are reachable.
+    const publicEndpoint = envOrDefault("S3_PUBLIC_ENDPOINT", internalEndpoint);
     this.client = new S3Client({
-      endpoint: envOrDefault("S3_ENDPOINT", "http://localhost:9000"),
-      region: envOrDefault("S3_REGION", "us-east-1"),
-      forcePathStyle: envBool("S3_FORCE_PATH_STYLE", true),
-      credentials: {
-        accessKeyId: envOrDefault("S3_ACCESS_KEY", "inclination"),
-        secretAccessKey: envOrDefault("S3_SECRET_KEY", "inclination_dev_pw"),
-      },
+      endpoint: internalEndpoint,
+      region,
+      forcePathStyle,
+      credentials,
     });
+    this.presignClient =
+      publicEndpoint === internalEndpoint
+        ? this.client
+        : new S3Client({ endpoint: publicEndpoint, region, forcePathStyle, credentials });
   }
 
   /** Readiness probe — listing buckets proves credentials + connectivity. */
@@ -93,12 +116,12 @@ export class StorageService implements HealthProbe {
       Key: objectKey,
       ContentType: contentType,
     });
-    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+    return getSignedUrl(this.presignClient, command, { expiresIn: expiresInSeconds });
   }
 
   /** Presigned GET URL for downloading a stored object (spec §9). */
   async presignGet(objectKey: string, expiresInSeconds = 900): Promise<string> {
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: objectKey });
-    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+    return getSignedUrl(this.presignClient, command, { expiresIn: expiresInSeconds });
   }
 }
