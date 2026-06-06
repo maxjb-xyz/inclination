@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page as PwPage } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 
 /**
  * Phase 2 "Done when" gate (spec §8): pages can be created / nested / moved /
