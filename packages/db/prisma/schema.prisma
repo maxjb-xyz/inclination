@@ -57,6 +57,7 @@ model Workspace {
 
   members     WorkspaceMember[]
   invitations Invitation[]
+  pages       Page[]
 }
 
 model WorkspaceMember {
@@ -125,4 +126,48 @@ model PasswordResetToken {
   createdAt  DateTime  @default(now())
 
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Phase 2 — Pages & content (spec §4, §9)
+// ─────────────────────────────────────────────────────────────
+
+enum PageType {
+  document
+  database
+  row
+}
+
+model Page {
+  id          String    @id @default(uuid())
+  workspaceId String
+  parentId    String?
+  type        PageType  @default(document)
+  title       String    @default("")
+  icon        String?
+  cover       String?
+  sortKey     String // fractional-index string for ordering among siblings
+  archivedAt  DateTime?
+  createdById String
+  editedById  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent    Page?        @relation("PageChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Page[]       @relation("PageChildren")
+  content   PageContent?
+
+  @@index([workspaceId, parentId, archivedAt])
+  @@index([parentId, sortKey])
+}
+
+// Phase 2 stores the editor doc as ProseMirror/Tiptap JSON. Phase 3 introduces
+// ydocState (bytea) + Yjs and migrates this. Documented interim per "no live collab yet."
+model PageContent {
+  pageId    String   @id
+  doc       Json     @default("{}")
+  updatedAt DateTime @updatedAt
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 }
