@@ -8,6 +8,10 @@
 	encode gzip
 
 	# API server (NestJS) — global prefix is /api (so /api/health, /api/ready).
+	# This also routes the databases realtime websocket: the socket.io gateway is
+	# mounted at path /api/realtime, so it falls under this handle. Caddy's
+	# reverse_proxy forwards Connection/Upgrade headers automatically, so the
+	# websocket upgrade reaches the API with no extra rule.
 	handle /api/* {
 		reverse_proxy api:3001
 	}

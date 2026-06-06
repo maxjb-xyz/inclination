@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       "@inclination/shared": resolve(__dirname, "../../packages/shared/src/index.ts"),
       "@inclination/db": resolve(__dirname, "../../packages/db/src/index.ts"),
+      "@inclination/db-engine": resolve(__dirname, "../../packages/db-engine/src/index.ts"),
     },
   },
   test: {

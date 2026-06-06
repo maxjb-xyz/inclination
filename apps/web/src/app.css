@@ -726,3 +726,241 @@ button {
 .backlinks__item:hover {
   background: var(--bg-hover);
 }
+
+/* ───────────────────────────────────────────────────────────
+   Phase 5 — Databases (collections)
+   ─────────────────────────────────────────────────────────── */
+
+.db-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.db-view--inline {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+.db-view__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.db-view__tabs,
+.db-view__type-switch {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+.db-tab,
+.db-typebtn {
+  border: 1px solid var(--border);
+  background: none;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.db-tab--active,
+.db-typebtn--active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.db-tab__type,
+.db-col-type {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-left: 0.25rem;
+}
+.db-tab--active .db-tab__type {
+  color: #e0e7ff;
+}
+
+.db-view-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.db-filter,
+.db-sort,
+.db-groupby,
+.db-visible-props {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.db-filter__row {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.db-table {
+  overflow-x: auto;
+}
+.db-table table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.db-table th,
+.db-table td {
+  border: 1px solid var(--border);
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  font-size: 0.85rem;
+}
+.db-col-header {
+  border: none;
+  background: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+.db-cell-computed {
+  color: var(--muted);
+}
+.db-add-row {
+  margin-top: 0.5rem;
+  border: 1px dashed var(--border);
+  background: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.db-board {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  align-items: flex-start;
+}
+.db-board__col {
+  min-width: 200px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+.db-board__col--over {
+  outline: 2px solid var(--accent);
+}
+.db-board__col-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+.db-board__count {
+  color: var(--muted);
+}
+.db-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  cursor: grab;
+  font-size: 0.85rem;
+}
+.db-card--dragging {
+  opacity: 0.6;
+}
+.db-card__title {
+  font-weight: 600;
+}
+.db-card__prop {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.db-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+.db-calendar__weekday {
+  background: var(--bg-hover);
+  padding: 0.25rem;
+  font-size: 0.75rem;
+  text-align: center;
+}
+.db-calendar__day {
+  background: #fff;
+  min-height: 70px;
+  padding: 0.25rem;
+  font-size: 0.78rem;
+}
+.db-calendar__day--blank {
+  background: var(--bg-hover);
+}
+.db-calendar__daynum {
+  color: var(--muted);
+}
+.db-calendar__event {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.1rem 0.25rem;
+  margin-top: 0.15rem;
+}
+
+.db-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+.db-gallery__card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+}
+.db-gallery__cover {
+  width: 100%;
+  border-radius: 6px;
+  margin-bottom: 0.4rem;
+}
+.db-gallery__title {
+  font-weight: 600;
+}
+.db-gallery__prop {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.db-prop-form,
+.db-options-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem;
+  max-width: 360px;
+}
+.db-prop-form__actions {
+  display: flex;
+  gap: 0.4rem;
+}
+.db-danger {
+  color: #b91c1c;
+}
+
+.db-node {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+}
+.db-node--empty {
+  text-align: center;
+  color: var(--muted);
+}
+.db-view__hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}

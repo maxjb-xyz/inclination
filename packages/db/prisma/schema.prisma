@@ -164,6 +164,13 @@ model Page {
   outgoingRefs PageReference[] @relation("PageOutgoingRefs")
   incomingRefs PageReference[] @relation("PageIncomingRefs")
 
+  // Phase 5 — databases (spec §5). A `database` page owns one Database; a `row`
+  // page owns its Cells and participates in RelationLinks on either side.
+  database  Database?      @relation("DatabaseContainer")
+  cells     Cell[]         @relation("RowCells")
+  fromLinks RelationLink[] @relation("RelationLinkFromRow")
+  toLinks   RelationLink[] @relation("RelationLinkToRow")
+
   @@index([workspaceId, parentId, archivedAt])
   @@index([parentId, sortKey])
 }
@@ -211,4 +218,95 @@ model PageSnapshot {
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@index([pageId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Phase 5 — Databases / collections (spec §5)
+// ─────────────────────────────────────────────────────────────
+
+// A Database is the relational "collection" attached 1:1 to a container Page of
+// type `database`. Its rows are Pages of type `row` whose parentId points at the
+// container page (or a parent row for sub-items). Property/View/Cell/RelationLink
+// hang off it. Deleting the container page cascades the whole collection away.
+model Database {
+  pageId             String  @id
+  defaultViewId      String?
+  subitemsEnabled    Boolean @default(false)
+  subitemsPropertyId String?
+
+  page       Page       @relation("DatabaseContainer", fields: [pageId], references: [id], onDelete: Cascade)
+  properties Property[]
+  views      View[]
+}
+
+// A typed column of a Database. `type` is one of the spec's property types and
+// `config` (JSONB) holds the per-type configuration (select options, number
+// format, relation target, rollup spec, formula expression, …). `isPrimary`
+// marks the title column. Values live in Cell rows keyed by (rowPage, property).
+model Property {
+  id         String  @id @default(uuid())
+  databaseId String
+  name       String
+  type       String
+  config     Json    @default("{}")
+  order      Int
+  isPrimary  Boolean @default(false)
+
+  database      Database       @relation(fields: [databaseId], references: [pageId], onDelete: Cascade)
+  cells         Cell[]
+  relationLinks RelationLink[]
+
+  @@index([databaseId])
+}
+
+// A single populated value: one row per (rowPage, property). The row's identity
+// is its Page (type `row`); `value` (JSONB) is the typed cell value. Indexed by
+// property for filter/sort performance (spec §9).
+model Cell {
+  id         String @id @default(uuid())
+  rowPageId  String
+  propertyId String
+  value      Json
+
+  rowPage  Page     @relation("RowCells", fields: [rowPageId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([rowPageId, propertyId])
+  @@index([propertyId])
+}
+
+// A directed edge of a `relation`-type property. Two-way relations store the
+// mirrored edge under the paired property; rollups aggregate over these links;
+// dependencies are relations whose config marks `isDependency`. fromRow/toRow
+// are row Pages. Cascades from both the property and either endpoint page.
+model RelationLink {
+  id         String @id @default(uuid())
+  propertyId String
+  fromRowId  String
+  toRowId    String
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  fromRow  Page     @relation("RelationLinkFromRow", fields: [fromRowId], references: [id], onDelete: Cascade)
+  toRow    Page     @relation("RelationLinkToRow", fields: [toRowId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, fromRowId, toRowId])
+  @@index([propertyId, fromRowId])
+  @@index([propertyId, toRowId])
+}
+
+// A saved view over a Database. `type` is table|board|calendar|gallery; `config`
+// (JSONB) holds visible/ordered properties, the filter AND/OR tree, sorts,
+// group_by, calendar date_property, gallery cover/size and page size. A linked
+// view may reference a Database owned by a different page (data is not copied).
+model View {
+  id         String @id @default(uuid())
+  databaseId String
+  type       String
+  name       String
+  order      Int
+  config     Json   @default("{}")
+
+  database Database @relation(fields: [databaseId], references: [pageId], onDelete: Cascade)
+
+  @@index([databaseId])
 }
