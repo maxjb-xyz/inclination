@@ -44,6 +44,9 @@ importers:
       '@inclination/db-engine':
         specifier: workspace:*
         version: link:../../packages/db-engine
+      '@inclination/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
       '@inclination/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -439,10 +442,16 @@ importers:
       lowlight:
         specifier: ^3.1.0
         version: 3.3.0
+      markdown-it:
+        specifier: ^14.2.0
+        version: 14.2.0
     devDependencies:
       '@types/katex':
         specifier: ^0.16.7
         version: 0.16.8
+      '@types/markdown-it':
+        specifier: ^14.1.2
+        version: 14.1.2
       jsdom:
         specifier: ^26.0.0
         version: 26.1.0

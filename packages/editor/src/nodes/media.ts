@@ -1,5 +1,5 @@
 import { mergeAttributes, Node } from "@tiptap/core";
-import { isSafeUrl } from "../url";
+import { isSafeUrl } from "../url.js";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {

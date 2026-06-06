@@ -15,13 +15,13 @@ import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
 import { createLowlight, common } from "lowlight";
 
-import { Callout } from "./nodes/callout";
-import { Column, Columns } from "./nodes/columns";
-import { Equation } from "./nodes/equation";
-import { Bookmark, Embed, FileBlock, VideoBlock } from "./nodes/media";
-import { Mention } from "./nodes/mention";
-import { PageLink } from "./nodes/pageLink";
-import { TableOfContents } from "./nodes/tableOfContents";
+import { Callout } from "./nodes/callout.js";
+import { Column, Columns } from "./nodes/columns.js";
+import { Equation } from "./nodes/equation.js";
+import { Bookmark, Embed, FileBlock, VideoBlock } from "./nodes/media.js";
+import { Mention } from "./nodes/mention.js";
+import { PageLink } from "./nodes/pageLink.js";
+import { TableOfContents } from "./nodes/tableOfContents.js";
 
 /** A Tiptap extension of any kind (node, mark, or plain extension). */
 export type AnyExtension = Extension | TiptapNode | Mark;

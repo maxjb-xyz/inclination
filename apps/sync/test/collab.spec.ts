@@ -2,13 +2,20 @@ import { describe, expect, it, vi } from "vitest";
 import jwt from "jsonwebtoken";
 import * as Y from "yjs";
 import {
+  authenticateDocument,
   authenticatePage,
+  authenticateSyncedBlock,
   documentNameToPageId,
+  documentNameToSyncedId,
+  fetchSyncedState,
   fetchYdocState,
   maybeWriteSnapshot,
   pageIdToDocumentName,
+  storeSyncedState,
   storeYdocState,
+  syncedIdToDocumentName,
   type CollabPrisma,
+  type SyncedAccessPrisma,
 } from "../src/collab.js";
 import type { PageAccessPrisma } from "@inclination/db";
 
@@ -55,6 +62,16 @@ describe("documentName helpers", () => {
     expect(documentNameToPageId("page:")).toBeNull();
     expect(documentNameToPageId("")).toBeNull();
     expect(documentNameToPageId("database:abc")).toBeNull();
+  });
+
+  it("parses synced:{id} and rejects malformed/page names", () => {
+    expect(documentNameToSyncedId("synced:blk-9")).toBe("blk-9");
+    expect(syncedIdToDocumentName("blk-9")).toBe("synced:blk-9");
+    expect(documentNameToSyncedId("synced:")).toBeNull();
+    expect(documentNameToSyncedId("page:blk-9")).toBeNull();
+    expect(documentNameToSyncedId("")).toBeNull();
+    // A page name is not a synced name and vice-versa.
+    expect(documentNameToPageId("synced:blk-9")).toBeNull();
   });
 });
 
@@ -219,5 +236,129 @@ describe("maybeWriteSnapshot throttling", () => {
     await maybeWriteSnapshot(prisma, "page:p2", state, last, { now: 0, minIntervalMs: 1000 });
 
     expect(snapshots.map((s) => s.pageId)).toEqual(["p1", "p2"]);
+  });
+});
+
+/** Fake Prisma for synced-block authorization. */
+function syncedAuthPrisma(opts: {
+  block?: { workspaceId: string } | null;
+  member?: Record<string, unknown> | null;
+}): SyncedAccessPrisma {
+  return {
+    syncedBlock: { findUnique: vi.fn().mockResolvedValue(opts.block ?? null) },
+    workspaceMember: { findUnique: vi.fn().mockResolvedValue(opts.member ?? null) },
+  } as unknown as SyncedAccessPrisma;
+}
+
+describe("authenticateSyncedBlock", () => {
+  it("authenticates a workspace member (writable)", async () => {
+    const prisma = syncedAuthPrisma({ block: { workspaceId: "ws-1" }, member: { id: "m-1" } });
+    const token = signToken("user-1");
+
+    const result = await authenticateSyncedBlock(
+      { prisma, secret: SECRET },
+      token,
+      "synced:blk-1",
+    );
+    expect(result.context).toEqual({ userId: "user-1" });
+    expect(result.readOnly).toBe(false);
+  });
+
+  it("rejects a non-member of the block's workspace", async () => {
+    const prisma = syncedAuthPrisma({ block: { workspaceId: "ws-1" }, member: null });
+    const token = signToken("outsider");
+    await expect(
+      authenticateSyncedBlock({ prisma, secret: SECRET }, token, "synced:blk-1"),
+    ).rejects.toThrow(/Access denied/);
+  });
+
+  it("rejects a missing synced block", async () => {
+    const prisma = syncedAuthPrisma({ block: null });
+    const token = signToken("user-1");
+    await expect(
+      authenticateSyncedBlock({ prisma, secret: SECRET }, token, "synced:ghost"),
+    ).rejects.toThrow(/Access denied/);
+  });
+
+  it("rejects a forged token before authorizing", async () => {
+    const prisma = syncedAuthPrisma({ block: { workspaceId: "ws-1" }, member: { id: "m-1" } });
+    const forged = jwt.sign({ sub: "user-1" }, "wrong-secret", { expiresIn: "15m" });
+    await expect(
+      authenticateSyncedBlock({ prisma, secret: SECRET }, forged, "synced:blk-1"),
+    ).rejects.toThrow(/Invalid token/);
+  });
+
+  it("rejects a malformed synced document name before touching the db", async () => {
+    const prisma = syncedAuthPrisma({ block: { workspaceId: "ws-1" }, member: { id: "m-1" } });
+    const token = signToken("user-1");
+    await expect(
+      authenticateSyncedBlock({ prisma, secret: SECRET }, token, "synced:"),
+    ).rejects.toThrow(/Invalid document name/);
+    expect(prisma.syncedBlock.findUnique as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+});
+
+describe("authenticateDocument routing", () => {
+  it("routes page:{id} to the page resolver and synced:{id} to the synced resolver", async () => {
+    // A single fake satisfying BOTH surfaces: a member of ws-1, a page in ws-1,
+    // and a synced block in ws-1.
+    const prisma = {
+      page: { findUnique: vi.fn().mockResolvedValue({ id: "page-1", parentId: null, workspaceId: "ws-1", archivedAt: null }) },
+      permission: { findMany: vi.fn().mockResolvedValue([]) },
+      syncedBlock: { findUnique: vi.fn().mockResolvedValue({ workspaceId: "ws-1" }) },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ id: "m-1", role: "member" }) },
+    } as unknown as PageAccessPrisma & SyncedAccessPrisma;
+    const token = signToken("user-1");
+
+    const page = await authenticateDocument({ prisma, secret: SECRET }, token, "page:page-1");
+    expect(page.context).toEqual({ userId: "user-1" });
+
+    const synced = await authenticateDocument({ prisma, secret: SECRET }, token, "synced:blk-1");
+    expect(synced.context).toEqual({ userId: "user-1" });
+    expect((prisma.syncedBlock.findUnique as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+  });
+});
+
+/** In-memory fake of the synced persistence surface. */
+function syncedCollabPrisma() {
+  const states = new Map<string, Uint8Array>();
+  const prisma = {
+    syncedBlock: {
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        const v = states.get(where.id);
+        return v ? { ydocState: v as Uint8Array<ArrayBuffer> } : { ydocState: null };
+      },
+      update: async ({ where, data }: { where: { id: string }; data: { ydocState: Uint8Array } }) => {
+        states.set(where.id, data.ydocState);
+        return undefined;
+      },
+    },
+  } as unknown as CollabPrisma;
+  return { prisma, states };
+}
+
+describe("synced store / fetch round-trip", () => {
+  it("stores a synced Yjs update and fetches it back", async () => {
+    const { prisma } = syncedCollabPrisma();
+    const doc = new Y.Doc();
+    doc.getText("body").insert(0, "synced content");
+    const update = Y.encodeStateAsUpdate(doc);
+
+    await storeSyncedState(prisma, "synced:blk-1", update);
+    const loaded = await fetchSyncedState(prisma, "synced:blk-1");
+
+    expect(loaded).not.toBeNull();
+    const doc2 = new Y.Doc();
+    Y.applyUpdate(doc2, loaded!);
+    expect(doc2.getText("body").toString()).toBe("synced content");
+  });
+
+  it("returns null when no synced state stored, and throws on malformed names", async () => {
+    const { prisma } = syncedCollabPrisma();
+    expect(await fetchSyncedState(prisma, "synced:none")).toBeNull();
+    expect(await fetchSyncedState(prisma, "page:x")).toBeNull();
+    await expect(storeSyncedState(prisma, "page:x", new Uint8Array([1]))).rejects.toThrow(
+      /Invalid document name/,
+    );
   });
 });

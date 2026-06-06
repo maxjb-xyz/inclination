@@ -181,6 +181,10 @@ model Page {
   searchIndex SearchIndex?
   attachments Attachment[]
 
+  // Phase 8 — publishing (spec §5). A page may have one PublicShare exposing it
+  // (and optionally its descendants) at a public, unauthenticated slug.
+  publicShare PublicShare?
+
   @@index([workspaceId, parentId, archivedAt])
   @@index([parentId, sortKey])
 }
@@ -403,6 +407,49 @@ model SearchIndex {
   updatedAt   DateTime @updatedAt
 
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Phase 8 — Publishing & synced blocks (spec §5, §6)
+// ─────────────────────────────────────────────────────────────
+
+// A page's public, read-only publication (spec §5). When `published`, the page
+// is served (without authentication) at `GET /api/public/{slug}`. We store a
+// client-rendered HTML snapshot (`publishedHtml`) + title at publish time so the
+// public endpoint can serve content without decoding the Yjs body or leaking the
+// editor stack to logged-out viewers (re-publishing refreshes the snapshot).
+//   includeSubpages → the public view may list published descendants.
+//   allowDuplicate  → surfaced as a flag so a future "duplicate into my
+//                      workspace" affordance can be gated by the publisher.
+// 1:1 with its Page; cascades away with the page so a share never dangles.
+model PublicShare {
+  id              String   @id @default(uuid())
+  pageId          String   @unique
+  slug            String   @unique
+  published       Boolean  @default(true)
+  includeSubpages Boolean  @default(false)
+  allowDuplicate  Boolean  @default(false)
+  publishedHtml   String?
+  publishedTitle  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([slug])
+}
+
+// A synced block's own Yjs document (spec §5/§6), keyed `synced:{id}` and served
+// by the sync server to every host page that embeds it. `ydocState` holds the
+// Yjs update binary (null until first edited). Scoped to a workspace; the sync
+// server authorizes a connection by workspace membership.
+model SyncedBlock {
+  id          String   @id @default(uuid())
+  workspaceId String
+  ydocState   Bytes?
+  createdAt   DateTime @default(now())
 
   @@index([workspaceId])
 }
