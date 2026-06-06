@@ -1,94 +1,113 @@
 /**
- * A small, dependency-free HTML sanitizer for rendering the published-page HTML
- * snapshot served by `GET /api/public/:slug`.
+ * HTML sanitizer for the published-page snapshot served by `GET /api/public/:slug`.
  *
  * The publish HTML originates from our own Tiptap editor, but the public route
  * renders it for logged-out viewers with NO auth, so we treat it defensively:
  * an attacker who managed to seed malicious markup into a published doc must not
- * get script execution in a visitor's browser. We therefore:
+ * get script execution in a visitor's browser.
  *
- *   - drop disallowed elements entirely (`<script>`, `<iframe>`, `<object>`,
- *     `<embed>`, `<style>`, `<link>`, `<meta>`, etc.);
- *   - strip every `on*` event-handler attribute;
- *   - strip `javascript:` / `vbscript:` / non-image `data:` URLs from
- *     `href`/`src`/`xlink:href`.
- *
- * It parses via the platform DOMParser (jsdom in tests, the browser in prod) so
- * we never execute the markup while inspecting it — `DOMParser.parseFromString`
- * does NOT run scripts or load subresources. The returned string is safe to pass
- * to `dangerouslySetInnerHTML`.
+ * We delegate to DOMPurify — a widely vetted sanitizer that handles the whole
+ * HTML/SVG/MathML attack surface (namespace-confusion, mutation XSS, `data:`
+ * smuggling, CSS-based vectors, etc.) far more robustly than a hand-rolled
+ * tag/attribute walk could. DOMPurify runs against the platform DOM (the browser
+ * in prod, jsdom in tests) and never executes the markup while inspecting it. The
+ * returned string is safe to pass to `dangerouslySetInnerHTML`.
  */
 
-/** Tags removed wholesale (with their content) — never safe to render inert. */
-const FORBIDDEN_TAGS = new Set([
-  "SCRIPT",
-  "STYLE",
-  "IFRAME",
-  "OBJECT",
-  "EMBED",
-  "LINK",
-  "META",
-  "BASE",
-  "FORM",
-  "NOSCRIPT",
-  "TEMPLATE",
-]);
-
-/** URL-bearing attributes whose scheme we validate. */
-const URL_ATTRS = new Set(["href", "src", "xlink:href"]);
+import DOMPurify from "dompurify";
 
 /**
- * Matches ASCII whitespace + control chars (U+0000–U+0020) an attacker might
- * inject to obfuscate a scheme (e.g. "java\tscript:"). Built via `new RegExp`
- * with unicode escapes so the source carries no literal control bytes.
+ * Formatting tags we allow for a read-only public document. Deliberately a small
+ * allow-list — anything not named here (script/iframe/object/embed/style/svg/
+ * math/form/...) is dropped by DOMPurify.
  */
-const CONTROL_CHARS = new RegExp("[\\u0000-\\u0020]+", "g");
+const ALLOWED_TAGS = [
+  "p",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "ul",
+  "ol",
+  "li",
+  "blockquote",
+  "pre",
+  "code",
+  "a",
+  "strong",
+  "em",
+  "b",
+  "i",
+  "s",
+  "u",
+  "img",
+  "br",
+  "hr",
+  "table",
+  "thead",
+  "tbody",
+  "tfoot",
+  "tr",
+  "td",
+  "th",
+  "span",
+  "div",
+];
 
-/** A scheme is allowed if it is http/https/mailto, a relative URL, or a data: image. */
-function isSafeAttrUrl(value: string): boolean {
-  // Strip whitespace/control chars first — browsers ignore these when resolving.
-  const collapsed = value.replace(CONTROL_CHARS, "").toLowerCase();
-  if (collapsed.startsWith("javascript:")) return false;
-  if (collapsed.startsWith("vbscript:")) return false;
-  // Allow image data URLs (Tiptap may inline small images); reject other data:.
-  if (collapsed.startsWith("data:")) return collapsed.startsWith("data:image/");
-  return true;
-}
+/**
+ * Safe attributes. Note `style` is intentionally absent: it carries
+ * CSS-based vectors (e.g. `background:url(javascript:...)`) and is never needed
+ * for a read-only render. Event handlers (`on*`) are stripped by DOMPurify.
+ */
+const ALLOWED_ATTR = ["href", "src", "alt", "title", "colspan", "rowspan", "class"];
 
-/** Recursively scrub a node tree in place. */
-function scrub(node: Node): void {
-  // Walk a snapshot of children (we mutate the live list as we go).
-  for (const child of Array.from(node.childNodes)) {
-    if (child.nodeType === Node.ELEMENT_NODE) {
-      const el = child as Element;
-      if (FORBIDDEN_TAGS.has(el.tagName)) {
-        el.remove();
-        continue;
-      }
-      // Strip every event handler + unsafe URL attribute.
-      for (const attr of Array.from(el.attributes)) {
-        const name = attr.name.toLowerCase();
-        if (name.startsWith("on")) {
-          el.removeAttribute(attr.name);
-          continue;
-        }
-        if (URL_ATTRS.has(name) && !isSafeAttrUrl(attr.value)) {
-          el.removeAttribute(attr.name);
-        }
-      }
-      scrub(el);
-    } else if (child.nodeType === Node.COMMENT_NODE) {
-      child.remove();
+/**
+ * Permit only http/https/mailto schemes (plus protocol-relative and relative
+ * URLs). `data:`, `javascript:`, `vbscript:`, etc. are rejected. Anchored and
+ * case-insensitive; matches DOMPurify's structure but narrower than its default
+ * (which also allows `tel:`, `ftp:`, `xmpp:`, image `data:` URLs, ...).
+ */
+const ALLOWED_URI_REGEXP = /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i;
+
+const PURIFY_CONFIG = {
+  ALLOWED_TAGS,
+  ALLOWED_ATTR,
+  ALLOWED_URI_REGEXP,
+  // Belt-and-suspenders: even if an entry crept into the allow-lists, never
+  // permit these. Forbidding the `style` attr also disables CSS-based vectors.
+  // Because only HTML-namespace tags are allow-listed above, any SVG/MathML
+  // element (whatever its case-sensitive local name) is dropped regardless.
+  FORBID_TAGS: ["script", "iframe", "object", "embed", "style", "svg", "math", "form"],
+  FORBID_ATTR: ["style"],
+  ALLOW_DATA_ATTR: false,
+  ALLOW_ARIA_ATTR: false,
+};
+
+let hookInstalled = false;
+
+/**
+ * Force every surviving anchor to open safely. Installed once, globally — the
+ * hook fires per-element during `sanitize()`.
+ */
+function ensureLinkHook(): void {
+  if (hookInstalled) return;
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.nodeName === "A" && node instanceof Element && node.hasAttribute("href")) {
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer");
     }
-  }
+  });
+  hookInstalled = true;
 }
 
 /**
  * Sanitize an HTML string, returning markup safe to inject. Disallowed elements
- * are removed, event-handler attributes stripped, and unsafe URL schemes dropped.
+ * (incl. SVG/MathML-namespaced ones) are removed, event-handler and `style`
+ * attributes stripped, and unsafe URL schemes dropped.
  */
 export function sanitizeHtml(html: string): string {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  scrub(doc.body);
-  return doc.body.innerHTML;
+  ensureLinkHook();
+  return DOMPurify.sanitize(html, PURIFY_CONFIG);
 }

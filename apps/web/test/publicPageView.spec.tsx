@@ -11,28 +11,124 @@ afterEach(() => {
 });
 
 describe("sanitizeHtml", () => {
-  it("removes <script> tags entirely", () => {
-    const out = sanitizeHtml('<p>hi</p><script>window.x=1</script>');
-    expect(out).toContain("<p>hi</p>");
-    expect(out.toLowerCase()).not.toContain("<script");
-    expect(out).not.toContain("window.x=1");
+  /**
+   * Render sanitized output into a *live* DOM the way PublicPageView does, then
+   * assert no dangerous element/attribute survives. Inspecting the live tree
+   * (not just the string) catches mutation-XSS that re-parses differently.
+   */
+  function liveSanitize(html: string): HTMLElement {
+    const host = document.createElement("div");
+    host.innerHTML = sanitizeHtml(html);
+    return host;
+  }
+
+  function assertNoDangerousMarkup(host: HTMLElement): void {
+    expect(host.querySelector("script")).toBeNull();
+    expect(host.querySelector("svg")).toBeNull();
+    expect(host.querySelector("iframe")).toBeNull();
+    expect(host.querySelector("style")).toBeNull();
+    expect(host.querySelector("math")).toBeNull();
+    expect(host.querySelector("object")).toBeNull();
+    expect(host.querySelector("embed")).toBeNull();
+    expect(host.querySelector("animate")).toBeNull();
+    // No event handlers and no style attribute anywhere.
+    for (const el of Array.from(host.querySelectorAll("*"))) {
+      for (const attr of Array.from(el.attributes)) {
+        expect(attr.name.toLowerCase().startsWith("on")).toBe(false);
+        expect(attr.name.toLowerCase()).not.toBe("style");
+      }
+    }
+    const lower = host.innerHTML.toLowerCase();
+    expect(lower).not.toContain("javascript:");
+    expect(lower).not.toContain("vbscript:");
+    expect(lower).not.toContain("data:text/html");
+  }
+
+  it("removes <script> tags entirely (HTML namespace)", () => {
+    const host = liveSanitize("<p>hi</p><script>window.x=1</script>");
+    expect(host.querySelector("p")?.textContent).toBe("hi");
+    assertNoDangerousMarkup(host);
+    expect(host.innerHTML).not.toContain("window.x=1");
   });
 
-  it("strips on* event-handler attributes", () => {
-    const out = sanitizeHtml('<img src="https://x/y.png" onerror="alert(1)">');
-    expect(out.toLowerCase()).not.toContain("onerror");
-    expect(out).not.toContain("alert(1)");
+  it("strips on* event-handler attributes (img onerror)", () => {
+    const host = liveSanitize('<img src="https://x/y.png" onerror="alert(1)">');
+    assertNoDangerousMarkup(host);
+    expect(host.innerHTML).not.toContain("alert(1)");
+  });
+
+  // --- C1: SVG/MathML-namespaced elements report a lowercase tagName. The old
+  // uppercase-Set check let these through. ---
+
+  it("C1: removes <svg><script> (SVG-namespaced script)", () => {
+    const host = liveSanitize("<svg><script>alert(1)</script></svg>");
+    assertNoDangerousMarkup(host);
+    expect(host.innerHTML).not.toContain("alert(1)");
+  });
+
+  it("C1: removes <svg><style> (SVG-namespaced style)", () => {
+    const host = liveSanitize("<svg><style>* { background: red }</style></svg>");
+    assertNoDangerousMarkup(host);
+  });
+
+  it("C1: removes a MathML vector", () => {
+    const host = liveSanitize(
+      '<math><maction actiontype="statusline#http://x" xlink:href="javascript:alert(1)">click</maction></math>',
+    );
+    assertNoDangerousMarkup(host);
+    expect(host.querySelector("maction")).toBeNull();
+    expect(host.innerHTML).not.toContain("alert(1)");
+  });
+
+  // --- C2: only {href,src,xlink:href} were scheme-checked and `style` was never
+  // filtered, so animate@attributeName and style:url(javascript:) survived. ---
+
+  it("C2: removes <svg><a><animate> attribute-name smuggling", () => {
+    const host = liveSanitize(
+      '<svg><a><animate attributeName="href" values="javascript:alert(1)"/></a></svg>',
+    );
+    assertNoDangerousMarkup(host);
+    expect(host.innerHTML).not.toContain("alert(1)");
+  });
+
+  it("C2: strips style attribute with CSS url(javascript:) vector", () => {
+    const host = liveSanitize('<div style="background:url(javascript:alert(1))">x</div>');
+    assertNoDangerousMarkup(host);
+    expect(host.innerHTML).not.toContain("alert(1)");
   });
 
   it("strips javascript: URLs from href", () => {
-    const out = sanitizeHtml('<a href="javascript:alert(1)">x</a>');
-    expect(out.toLowerCase()).not.toContain("javascript:");
+    const host = liveSanitize('<a href="javascript:alert(1)">x</a>');
+    assertNoDangerousMarkup(host);
+    // Anchor text preserved; the dangerous href dropped.
+    expect(host.querySelector("a")?.getAttribute("href")).toBeNull();
   });
 
-  it("keeps safe http links and text", () => {
-    const out = sanitizeHtml('<a href="https://example.com">link</a>');
-    expect(out).toContain('href="https://example.com"');
-    expect(out).toContain("link");
+  it("removes <iframe>", () => {
+    const host = liveSanitize('<iframe src="https://evil.example"></iframe>');
+    assertNoDangerousMarkup(host);
+  });
+
+  // --- Safe content must be preserved so the public page still renders. ---
+
+  it("keeps safe paragraphs, links, images, bold and headings", () => {
+    const host = liveSanitize(
+      '<h1>Title</h1><p>Body <strong>bold</strong></p>' +
+        '<a href="https://example.com">link</a>' +
+        '<img src="https://cdn.example/p.png" alt="pic">',
+    );
+    expect(host.querySelector("h1")?.textContent).toBe("Title");
+    expect(host.querySelector("p")?.textContent).toContain("Body");
+    expect(host.querySelector("strong")?.textContent).toBe("bold");
+    const a = host.querySelector("a");
+    expect(a?.getAttribute("href")).toBe("https://example.com");
+    // Links are hardened to open safely.
+    expect(a?.getAttribute("target")).toBe("_blank");
+    expect(a?.getAttribute("rel")).toBe("noopener noreferrer");
+    const img = host.querySelector("img");
+    expect(img?.getAttribute("src")).toBe("https://cdn.example/p.png");
+    expect(img?.getAttribute("alt")).toBe("pic");
+    assertNoDangerousMarkup(host);
   });
 });
 
