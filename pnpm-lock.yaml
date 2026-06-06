@@ -65,6 +65,9 @@ importers:
       argon2:
         specifier: ^0.41.1
         version: 0.41.1
+      fractional-indexing:
+        specifier: ^3.2.0
+        version: 3.2.0
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
@@ -2671,6 +2674,10 @@ packages:
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
+
+  fractional-indexing@3.2.0:
+    resolution: {integrity: sha512-PcOxmqwYCW7O2ovKRU8OoQQj2yqTfEB/yeTYk4gPid6dN5ODRfU1hXd9tTVZzax/0NkO7AxpHykvZnT1aYp/BQ==}
+    engines: {node: ^14.13.1 || >=16.0.0}
 
   fresh@2.0.0:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
@@ -6726,6 +6733,8 @@ snapshots:
       once: 1.4.0
 
   forwarded@0.2.0: {}
+
+  fractional-indexing@3.2.0: {}
 
   fresh@2.0.0: {}
 
