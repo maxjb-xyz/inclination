@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { projectMove } from "./projectMove";
 import { Sidebar } from "./Sidebar";
 import { PageView } from "./PageView";
 import { TrashView } from "./TrashView";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsBell } from "../collab/NotificationsBell";
+import { useShortcuts } from "../shortcuts/useShortcuts";
+import type { Shortcut } from "../shortcuts/shortcuts";
+import { ShortcutsHelp } from "../shortcuts/ShortcutsHelp";
+import { useThemeStore } from "../theme/themeStore";
 import { apiClient } from "../api/apiClient";
 import { createPublishingApi } from "../api/publishingApi";
 import {
@@ -65,6 +69,11 @@ function WorkspaceShell({
   const qc = useQueryClient();
   const pages = tree.data ?? [];
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  // Sidebar visibility. On narrow viewports it overlays and starts closed;
+  // on wide viewports CSS keeps it in flow regardless of this flag.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const cycleTheme = useThemeStore((s) => s.cycle);
 
   // Import a Markdown file → create a page tree → refetch the sidebar tree and
   // open the created root page.
@@ -89,17 +98,51 @@ function WorkspaceShell({
     setView({ kind: "trash" });
   }, [setView]);
 
-  // Global ⌘K / Ctrl+K toggles the command palette from any page.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((o) => !o);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  // Keyboard shortcuts. ⌘K is global (fires even inside the editor); the rest
+  // are suppressed while typing in an editable surface (see useShortcuts).
+  const shortcuts = useMemo<Shortcut[]>(
+    () => [
+      {
+        id: "palette",
+        key: "k",
+        meta: true,
+        global: true,
+        description: "Open the command palette",
+        run: () => setPaletteOpen((o) => !o),
+      },
+      {
+        id: "toggle-sidebar",
+        key: "\\",
+        meta: true,
+        description: "Toggle the sidebar",
+        run: () => setSidebarOpen((o) => !o),
+      },
+      {
+        id: "toggle-theme",
+        key: "l",
+        meta: true,
+        shift: true,
+        description: "Cycle the theme (light / dark / system)",
+        run: () => cycleTheme(),
+      },
+      {
+        id: "new-page",
+        key: "n",
+        meta: true,
+        description: "Create a new page",
+        run: () => createRoot(),
+      },
+      {
+        id: "help",
+        key: "?",
+        global: true,
+        description: "Show keyboard shortcuts",
+        run: () => setHelpOpen((o) => !o),
+      },
+    ],
+    [cycleTheme, createRoot],
+  );
+  useShortcuts(shortcuts);
 
   function createChild(parentId: string): void {
     createPage.mutate({ parentId }, { onSuccess: (p) => setView({ kind: "page", id: p.id }) });
@@ -118,12 +161,30 @@ function WorkspaceShell({
     movePage.mutate({ id, input: plan.input });
   }
 
+  // On selection, close the (overlay) sidebar on narrow screens.
+  const selectAndClose = useCallback(
+    (id: string): void => {
+      openPage(id);
+      setSidebarOpen(false);
+    },
+    [openPage],
+  );
+
   return (
-    <div className="workspace">
+    <div className={`workspace${sidebarOpen ? " sidebar-open" : ""}`}>
+      {sidebarOpen ? (
+        <button
+          type="button"
+          className="sidebar-scrim"
+          data-testid="sidebar-scrim"
+          aria-label="Close sidebar"
+          onClick={() => setSidebarOpen(false)}
+        />
+      ) : null}
       <Sidebar
         pages={pages}
         activePageId={view.kind === "page" ? view.id : null}
-        onSelect={openPage}
+        onSelect={selectAndClose}
         onCreateRoot={createRoot}
         onCreateChild={createChild}
         onArchive={archive}
@@ -135,6 +196,16 @@ function WorkspaceShell({
         <div className="workspace-topbar">
           <button
             type="button"
+            className="sidebar-toggle"
+            data-testid="sidebar-toggle"
+            aria-label="Toggle sidebar"
+            aria-expanded={sidebarOpen}
+            onClick={() => setSidebarOpen((o) => !o)}
+          >
+            ☰
+          </button>
+          <button
+            type="button"
             className="quick-switcher-trigger"
             data-testid="open-command-palette"
             onClick={() => setPaletteOpen(true)}
@@ -142,6 +213,16 @@ function WorkspaceShell({
             🔍 Search… <kbd>⌘K</kbd>
           </button>
           <span className="spacer" />
+          <button
+            type="button"
+            className="shortcuts-trigger"
+            data-testid="open-shortcuts"
+            aria-label="Keyboard shortcuts"
+            title="Keyboard shortcuts (?)"
+            onClick={() => setHelpOpen(true)}
+          >
+            ?
+          </button>
           <NotificationsBell onOpenPage={openPage} />
         </div>
         {view.kind === "page" ? (
@@ -165,6 +246,9 @@ function WorkspaceShell({
           onNewPage={createRoot}
           onOpenTrash={openTrash}
         />
+      ) : null}
+      {helpOpen ? (
+        <ShortcutsHelp shortcuts={shortcuts} onClose={() => setHelpOpen(false)} />
       ) : null}
     </div>
   );

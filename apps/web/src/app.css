@@ -1,12 +1,62 @@
-:root {
-  --border: #e5e5e5;
-  --muted: #6b7280;
-  --accent: #2563eb;
+/* ───────────────────────────────────────────────────────────
+   Theme tokens. `data-theme="light|dark"` is set on <html> by the
+   theme store (see src/theme). Components reference these variables
+   so dark mode works without touching component CSS.
+   ─────────────────────────────────────────────────────────── */
+:root,
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-elevated: #ffffff; /* popovers, dialogs, cards */
+  --bg-sidebar: #fafafa;
+  --bg-subtle: #f9fafb; /* faint fills (callouts, media forms) */
   --bg-hover: #f3f4f6;
+  --bg-active: #eff6ff; /* selected rows / active items */
+  --text: #111827;
+  --text-strong: #111827;
+  --muted: #6b7280;
+  --border: #e5e5e5;
+  --border-strong: #e2e8f0;
+  --accent: #2563eb;
+  --accent-contrast: #ffffff;
+  --accent-soft: #eef2ff;
+  --scrim: rgba(15, 23, 42, 0.35);
+  --shadow: rgba(0, 0, 0, 0.12);
+  --shadow-strong: rgba(15, 23, 42, 0.3);
+  --code-bg: #0d1117;
+  --code-fg: #e6edf3;
+  --highlight: #fef08a;
+  --danger: #b91c1c;
+  --success: #059669;
+
   font-family:
     system-ui,
     -apple-system,
     sans-serif;
+}
+
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --bg-elevated: #242424;
+  --bg-sidebar: #181818;
+  --bg-subtle: #202020;
+  --bg-hover: #2a2a2a;
+  --bg-active: #1e2a3f;
+  --text: #e6e6e6;
+  --text-strong: #f5f5f5;
+  --muted: #9ca3af;
+  --border: #333333;
+  --border-strong: #3a3a3a;
+  --accent: #60a5fa;
+  --accent-contrast: #0b1220;
+  --accent-soft: #1e2a4a;
+  --scrim: rgba(0, 0, 0, 0.6);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-strong: rgba(0, 0, 0, 0.6);
+  --code-bg: #0d1117;
+  --code-fg: #e6edf3;
+  --highlight: #8a6d00;
+  --danger: #f87171;
+  --success: #34d399;
 }
 
 * {
@@ -15,7 +65,8 @@
 
 body {
   margin: 0;
-  color: #111827;
+  color: var(--text);
+  background: var(--bg);
 }
 
 .auth-shell {
@@ -64,7 +115,7 @@ body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: #fafafa;
+  background: var(--bg-sidebar);
   overflow-y: auto;
 }
 
@@ -173,7 +224,7 @@ body {
 }
 
 .crumb.current {
-  color: #111827;
+  color: var(--text-strong);
   font-weight: 600;
 }
 
@@ -264,7 +315,7 @@ body {
   font-weight: 600;
   line-height: normal;
   white-space: nowrap;
-  color: #fff;
+  color: var(--accent-contrast);
   padding: 0.1rem 0.3rem;
   border-radius: 3px 3px 3px 0;
   user-select: none;
@@ -316,7 +367,7 @@ button {
   gap: 0.6rem;
   padding: 0.75rem 1rem;
   margin: 0.5rem 0;
-  background: #f3f4f6;
+  background: var(--bg-hover);
   border-radius: 6px;
 }
 
@@ -353,8 +404,8 @@ button {
 
 /* Code block */
 .editor .ProseMirror pre {
-  background: #0d1117;
-  color: #e6edf3;
+  background: var(--code-bg);
+  color: var(--code-fg);
   border-radius: 6px;
   padding: 0.75rem 1rem;
   overflow-x: auto;
@@ -367,7 +418,7 @@ button {
 }
 
 .editor .ProseMirror :not(pre) > code {
-  background: #f3f4f6;
+  background: var(--bg-hover);
   border-radius: 3px;
   padding: 0.1rem 0.3rem;
   font-size: 0.85em;
@@ -423,7 +474,7 @@ button {
   display: flex;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: #f9fafb;
+  background: var(--bg-subtle);
   border: 1px dashed var(--border);
   border-radius: 6px;
 }
@@ -447,7 +498,7 @@ button {
 .media-file {
   display: inline-block;
   padding: 0.5rem 0.75rem;
-  background: #f3f4f6;
+  background: var(--bg-hover);
   border-radius: 6px;
   text-decoration: none;
   color: inherit;
@@ -477,7 +528,7 @@ button {
 }
 
 .editor .ProseMirror [data-type="mention"] {
-  background: #eef2ff;
+  background: var(--accent-soft);
   border-radius: 3px;
   padding: 0 0.2rem;
   color: var(--accent);
@@ -489,7 +540,7 @@ button {
 }
 
 .slash-menu {
-  background: #fff;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
@@ -558,7 +609,7 @@ button {
   left: 0;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
@@ -595,7 +646,7 @@ button {
 }
 
 .mention-menu {
-  background: #fff;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
@@ -766,7 +817,7 @@ button {
 .db-tab--active,
 .db-typebtn--active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
   border-color: var(--accent);
 }
 .db-tab__type,
@@ -856,7 +907,7 @@ button {
   color: var(--muted);
 }
 .db-card {
-  background: #fff;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.5rem;
@@ -889,7 +940,7 @@ button {
   text-align: center;
 }
 .db-calendar__day {
-  background: #fff;
+  background: var(--bg-elevated);
   min-height: 70px;
   padding: 0.25rem;
   font-size: 0.78rem;
@@ -902,7 +953,7 @@ button {
 }
 .db-calendar__event {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-contrast);
   border-radius: 4px;
   padding: 0.1rem 0.25rem;
   margin-top: 0.15rem;
@@ -947,7 +998,7 @@ button {
   gap: 0.4rem;
 }
 .db-danger {
-  color: #b91c1c;
+  color: var(--danger);
 }
 
 .db-node {
@@ -986,7 +1037,7 @@ button {
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--bg-elevated);
   cursor: pointer;
 }
 .page-action:hover {
@@ -997,14 +1048,14 @@ button {
 .share-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
 }
 .share-dialog {
-  background: #fff;
+  background: var(--bg-elevated);
   border-radius: 10px;
   width: min(480px, 92vw);
   padding: 1rem 1.25rem;
@@ -1034,11 +1085,11 @@ button {
   flex: 1;
 }
 .share-msg {
-  color: #059669;
+  color: var(--success);
   font-size: 0.85rem;
 }
 .share-err {
-  color: #b91c1c;
+  color: var(--danger);
   font-size: 0.85rem;
 }
 .share-workspace {
@@ -1052,7 +1103,7 @@ button {
   right: 0;
   bottom: 0;
   width: min(360px, 90vw);
-  background: #fff;
+  background: var(--bg-elevated);
   border-left: 1px solid var(--border);
   padding: 1rem;
   overflow-y: auto;
@@ -1108,7 +1159,7 @@ button {
 }
 .comment-mention-menu {
   position: absolute;
-  background: #fff;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
@@ -1143,7 +1194,7 @@ button {
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--accent);
   color: var(--accent);
-  background: #fff;
+  background: var(--bg-elevated);
   border-radius: 6px;
   cursor: pointer;
 }
@@ -1174,7 +1225,7 @@ button {
   top: -4px;
   right: -6px;
   background: #ef4444;
-  color: #fff;
+  color: var(--accent-contrast);
   font-size: 0.65rem;
   border-radius: 999px;
   padding: 0 0.3rem;
@@ -1186,7 +1237,7 @@ button {
   right: 0;
   top: 120%;
   width: 300px;
-  background: #fff;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
@@ -1217,7 +1268,7 @@ button {
 }
 .notifications__item.is-unread {
   font-weight: 600;
-  background: #eff6ff;
+  background: var(--bg-active);
 }
 
 /* ── Phase 7: command palette / quick switcher ─────────────── */
@@ -1225,23 +1276,23 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-subtle);
   border-radius: 6px;
   padding: 0.35rem 0.6rem;
-  color: #475569;
+  color: var(--muted);
   cursor: pointer;
 }
 .quick-switcher-trigger kbd {
   font-size: 0.75rem;
-  background: #e2e8f0;
+  background: var(--bg-hover);
   border-radius: 4px;
   padding: 0 0.3rem;
 }
 .command-palette__overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.35);
+  background: var(--scrim);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -1250,7 +1301,7 @@ button {
 }
 .command-palette {
   width: min(560px, 92vw);
-  background: #fff;
+  background: var(--bg-elevated);
   border-radius: 10px;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
   overflow: hidden;
@@ -1258,7 +1309,7 @@ button {
 .command-palette__input {
   width: 100%;
   border: none;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-strong);
   padding: 0.9rem 1rem;
   font-size: 1rem;
   outline: none;
@@ -1283,22 +1334,22 @@ button {
 }
 .command-palette__result.is-active,
 .command-palette__action.is-active {
-  background: #eff6ff;
+  background: var(--bg-active);
 }
 .command-palette__result-title {
   font-weight: 600;
 }
 .command-palette__result-snippet {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--muted);
 }
 .command-palette__result-snippet mark {
-  background: #fef08a;
+  background: var(--highlight);
   color: inherit;
 }
 .command-palette__hint {
   padding: 0.6rem 1rem;
-  color: #94a3b8;
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
@@ -1309,7 +1360,7 @@ button {
   gap: 0.5rem;
   margin-top: 0.5rem;
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--muted);
 }
 .media-image {
   max-width: 100%;
@@ -1327,8 +1378,8 @@ button {
   right: 0;
   width: min(380px, 92vw);
   height: 100vh;
-  background: #fff;
-  border-left: 1px solid #e2e8f0;
+  background: var(--bg-elevated);
+  border-left: 1px solid var(--border-strong);
   box-shadow: -8px 0 24px rgba(15, 23, 42, 0.12);
   display: flex;
   flex-direction: column;
@@ -1339,7 +1390,7 @@ button {
   align-items: center;
   justify-content: space-between;
   padding: 0.8rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-strong);
 }
 .version-panel__header h2 {
   font-size: 1rem;
@@ -1361,10 +1412,10 @@ button {
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border);
 }
 .version-item.is-active {
-  background: #eff6ff;
+  background: var(--bg-active);
 }
 .version-item__select {
   display: flex;
@@ -1378,10 +1429,10 @@ button {
 }
 .version-item__meta {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--muted);
 }
 .version-panel__preview {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-strong);
   padding: 0.8rem 1rem;
   overflow-y: auto;
   flex: 1;
@@ -1394,7 +1445,7 @@ button {
 }
 .version-panel__hint {
   padding: 0.6rem 1rem;
-  color: #94a3b8;
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
@@ -1402,14 +1453,14 @@ button {
 .publish-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
 }
 .publish-dialog {
-  background: #fff;
+  background: var(--bg-elevated);
   border-radius: 10px;
   width: min(480px, 92vw);
   padding: 1rem 1.25rem;
@@ -1446,7 +1497,7 @@ button {
   margin-top: 0.75rem;
 }
 .publish-err {
-  color: #c0392b;
+  color: var(--danger);
   font-size: 0.85rem;
 }
 .public-page {
@@ -1459,7 +1510,7 @@ button {
 }
 .public-page__subpages {
   margin-top: 2rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border);
   padding-top: 1rem;
 }
 .synced-block {
@@ -1476,9 +1527,208 @@ button {
   user-select: none;
 }
 .synced-block--empty {
-  background: #f7f7f7;
+  background: var(--bg-hover);
 }
 .synced-block__error {
-  color: #c0392b;
+  color: var(--danger);
   font-size: 0.85rem;
+}
+
+/* ───────────────────────────────────────────────────────────
+   Phase 9 — theme toggle, favorites/recents, shortcuts, responsive
+   ─────────────────────────────────────────────────────────── */
+
+/* Theme toggle (topbar) */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  background: var(--bg-hover);
+}
+
+/* Shortcuts help trigger (topbar) */
+.shortcuts-trigger {
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--muted);
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: 600;
+}
+.shortcuts-trigger:hover {
+  background: var(--bg-hover);
+}
+
+/* Sidebar Favorites / Recent sections */
+.sidebar-section {
+  padding: 0.4rem 0.25rem 0.2rem;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-section__title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 0.15rem 0.75rem;
+}
+.sidebar-section__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sidebar-section__link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  padding: 4px 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sidebar-section__link:hover {
+  background: var(--bg-hover);
+}
+
+/* Favorite (star) button in the page header */
+.favorite-button {
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--muted);
+}
+.favorite-button.is-favorite {
+  color: #f59e0b;
+  border-color: #f59e0b;
+}
+
+/* Command-palette group header + favorites */
+.command-palette__group {
+  padding: 0.4rem 1rem 0.2rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+/* Sidebar toggle (hamburger) — hidden on wide viewports */
+.sidebar-toggle {
+  display: none;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  margin-right: 0.5rem;
+  cursor: pointer;
+}
+
+/* Scrim behind the overlay sidebar on narrow viewports */
+.sidebar-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  border: none;
+  z-index: 79;
+}
+
+/* Shortcuts help modal */
+.shortcuts-help__overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 130;
+}
+.shortcuts-help {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-radius: 10px;
+  width: min(420px, 92vw);
+  padding: 1rem 1.25rem;
+  box-shadow: 0 20px 50px var(--shadow-strong);
+}
+.shortcuts-help__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.shortcuts-help__header h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+.shortcuts-help__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.shortcuts-help__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--border);
+}
+.shortcuts-help__combo {
+  display: inline-flex;
+  gap: 0.2rem;
+  flex: none;
+}
+.shortcuts-help kbd,
+.app-topbar kbd,
+.quick-switcher-trigger kbd {
+  font-size: 0.72rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 0.3rem;
+  color: var(--text);
+}
+
+/* ── Responsive: collapse the sidebar to an overlay on narrow viewports ── */
+@media (max-width: 720px) {
+  .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+  }
+  .workspace-main {
+    padding: 1rem 1rem;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 80;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 4px 0 16px var(--shadow);
+  }
+  .workspace.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+  .workspace.sidebar-open .sidebar-scrim {
+    display: block;
+  }
 }

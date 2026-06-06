@@ -10,6 +10,8 @@ import { downloadMarkdown } from "../publish/download";
 import { BacklinksPanel } from "./BacklinksPanel";
 import { VersionHistoryPanel } from "./VersionHistoryPanel";
 import { useBacklinks, usePage, useUpdatePage } from "./queries";
+import { useRecordVisit } from "./favoritesQueries";
+import { FavoriteButton } from "./FavoriteButton";
 import { useAuthStore } from "../auth/authStore";
 import { useCollabSession } from "../collab/useCollabSession";
 import { colorForUserId } from "../collab/color";
@@ -33,6 +35,15 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   const backlinksQuery = useBacklinks(pageId);
   const accessQuery = usePageAccess(pageId);
   const createComment = useCreateComment(pageId);
+  const recordVisit = useRecordVisit();
+
+  // Record a visit when a page is opened so the sidebar "Recent" section
+  // updates. Fire-and-forget (errors swallowed by the mutation). Keyed on
+  // pageId so navigating between pages records each one.
+  const visitMutate = recordVisit.mutate;
+  useEffect(() => {
+    if (pageId) visitMutate(pageId);
+  }, [pageId, visitMutate]);
 
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.tokens?.accessToken ?? "");
@@ -116,6 +127,7 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
 
   const headerActions = (
     <div className="page-actions" data-testid="page-actions">
+      <FavoriteButton pageId={pageId} title={page.title} icon={page.icon} />
       <button
         type="button"
         className="page-action"

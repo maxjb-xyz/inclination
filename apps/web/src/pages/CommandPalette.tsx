@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearch } from "./queries";
+import { useFavorites } from "./favoritesQueries";
 import { debounce } from "./debounce";
 import { parseSnippet } from "./snippet";
 
@@ -48,6 +49,12 @@ export function CommandPalette({
   const searchQuery = useSearch(workspaceId, query);
   const results = searchQuery.data ?? [];
 
+  // Favorites surface as quick-nav when no search query is active.
+  const favoritesQuery = useFavorites();
+  const showFavorites = query.trim().length === 0;
+  const favorites =
+    showFavorites && Array.isArray(favoritesQuery.data) ? favoritesQuery.data : [];
+
   const actions: QuickAction[] = useMemo(
     () => [
       { id: "new-page", label: "＋ New page", run: () => withClose(onNewPage) },
@@ -61,13 +68,15 @@ export function CommandPalette({
     onClose();
   }
 
-  // Flatten the navigable items (results first, then actions) for keyboard nav.
+  // Flatten the navigable items (favorites, then results, then actions) for
+  // keyboard nav. Favorites only appear when there's no active query.
   const items = useMemo(
     () => [
+      ...favorites.map((f) => ({ kind: "favorite" as const, id: f.pageId, run: () => withClose(() => onOpenPage(f.pageId)) })),
       ...results.map((r) => ({ kind: "page" as const, id: r.pageId, run: () => withClose(() => onOpenPage(r.pageId)) })),
       ...actions.map((a) => ({ kind: "action" as const, id: a.id, run: a.run })),
     ],
-    [results, actions, onOpenPage],
+    [favorites, results, actions, onOpenPage],
   );
 
   const [active, setActive] = useState(0);
@@ -118,13 +127,42 @@ export function CommandPalette({
         />
 
         <ul className="command-palette__list" role="listbox">
+          {favorites.length > 0 ? (
+            <li className="command-palette__group" data-testid="command-palette-favorites-group">
+              ⭐ Favorites
+            </li>
+          ) : null}
+          {favorites.map((f, i) => {
+            const idx = i;
+            return (
+              <li
+                key={f.pageId}
+                role="option"
+                aria-selected={active === idx}
+                className={`command-palette__result${active === idx ? " is-active" : ""}`}
+                data-testid="command-palette-favorite"
+                onMouseEnter={() => setActive(idx)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  withClose(() => onOpenPage(f.pageId));
+                }}
+              >
+                <span className="command-palette__result-title">
+                  {(f.icon ?? "\u{1F4C4}") + " " + (f.title || "Untitled")}
+                </span>
+              </li>
+            );
+          })}
+
           {query.trim() && searchQuery.isFetching && results.length === 0 ? (
             <li className="command-palette__hint" data-testid="command-palette-loading">
               Searching…
             </li>
           ) : null}
 
-          {results.map((r, idx) => (
+          {results.map((r, i) => {
+            const idx = favorites.length + i;
+            return (
             <li
               key={r.pageId}
               role="option"
@@ -139,18 +177,19 @@ export function CommandPalette({
             >
               <span className="command-palette__result-title">{r.title || "Untitled"}</span>
               <span className="command-palette__result-snippet" data-testid="command-palette-snippet">
-                {parseSnippet(r.snippet).map((part, i) =>
+                {parseSnippet(r.snippet).map((part, pi) =>
                   part.highlight ? (
-                    <mark key={i} data-testid="snippet-highlight">
+                    <mark key={pi} data-testid="snippet-highlight">
                       {part.text}
                     </mark>
                   ) : (
-                    <span key={i}>{part.text}</span>
+                    <span key={pi}>{part.text}</span>
                   ),
                 )}
               </span>
             </li>
-          ))}
+          );
+          })}
 
           {query.trim() && !searchQuery.isFetching && results.length === 0 ? (
             <li className="command-palette__hint" data-testid="command-palette-empty">
@@ -159,7 +198,7 @@ export function CommandPalette({
           ) : null}
 
           {actions.map((a, i) => {
-            const idx = results.length + i;
+            const idx = favorites.length + results.length + i;
             return (
               <li
                 key={a.id}

@@ -1,10 +1,28 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Sidebar } from "../src/pages/Sidebar";
 import type { Page } from "../src/api/types";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+// The sidebar now hosts Favorites/Recent sections backed by TanStack Query, so
+// the standalone render needs a fetch stub (returns empty lists).
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    ),
+  );
+});
 
 function page(id: string, parentId: string | null, sortKey: string, title: string): Page {
   return {
@@ -43,7 +61,12 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
     onImport: vi.fn(),
     ...overrides,
   };
-  render(<Sidebar {...props} />);
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={qc}>
+      <Sidebar {...props} />
+    </QueryClientProvider>,
+  );
   return props;
 }
 

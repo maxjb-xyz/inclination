@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Sidebar } from "../src/pages/Sidebar";
 import { createPublishingApi } from "../src/api/publishingApi";
@@ -9,6 +10,21 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
+
+function renderSidebar(ui: React.ReactElement) {
+  // The sidebar's Favorites/Recent sections need a QueryClient + fetch stub.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    ),
+  );
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
 
 const baseProps = {
   pages: [],
@@ -25,7 +41,7 @@ describe("Sidebar Markdown import", () => {
   it("reads the selected file's text and calls onImport(filename, markdown)", async () => {
     const onImport = vi.fn();
     const u = userEvent.setup();
-    render(<Sidebar {...baseProps} onImport={onImport} />);
+    renderSidebar(<Sidebar {...baseProps} onImport={onImport} />);
 
     const input = screen.getByTestId("import-md-input") as HTMLInputElement;
     const file = new File(["# Title\n\nBody"], "notes.md", { type: "text/markdown" });

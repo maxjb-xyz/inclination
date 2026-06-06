@@ -140,3 +140,21 @@ export interface ImportedTree {
   title: string;
   children: ImportedTree[];
 }
+
+// ── Phase 9: favorites / recents ────────────────────────────────────
+
+/** A favorited page from `GET /api/favorites`. */
+export interface Favorite {
+  pageId: string;
+  title: string;
+  icon: string | null;
+  order: number;
+}
+
+/** A recently-visited page from `GET /api/recents`. */
+export interface Recent {
+  pageId: string;
+  title: string;
+  icon: string | null;
+  visitedAt: string;
+}

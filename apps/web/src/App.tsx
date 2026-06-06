@@ -6,11 +6,16 @@ import { Workspace } from "./pages/Workspace";
 import { PublicPageView } from "./public/PublicPageView";
 import { publicSlugFromPath } from "./public/route";
 import { queryClient } from "./queryClient";
+import { ThemeToggle } from "./theme/ThemeToggle";
+import { useTheme } from "./theme/useTheme";
 import "./app.css";
 
 export function App(): React.ReactElement {
   const user = useAuthStore((s) => s.user);
   const clear = useAuthStore((s) => s.clear);
+  // Apply + keep the persisted theme in sync (data-theme on <html>). Runs for
+  // every render path (auth screen, public page, app shell).
+  useTheme();
 
   // The public page route is served WITHOUT auth — detect it before the auth
   // gate so a logged-out visitor can read a published page. No token is sent.
@@ -36,6 +41,7 @@ export function App(): React.ReactElement {
         <header className="app-topbar">
           <span className="brand">{APP_NAME}</span>
           <span className="spacer" />
+          <ThemeToggle />
           <span data-testid="current-user">Signed in as {user.displayName}</span>
           <button onClick={clear}>Sign out</button>
         </header>
