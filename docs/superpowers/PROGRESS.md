@@ -13,7 +13,9 @@ Single source of truth for build state. One entry per phase (and per significant
 - [x] **Phase 6 — Comments, sharing & permissions**
 - [x] **Phase 7 — Search, files & version history**
 - [x] **Phase 8 — Publishing, import/export & synced blocks**
-- [ ] **Phase 9 — Polish & self-host hardening**
+- [x] **Phase 9 — Polish & self-host hardening**
+
+> **🎉 BUILD COMPLETE (2026-06-06):** all 10 phases shipped to `main`, tags `phase-0-complete` … `phase-9-complete`. `main` is green and deployable; a fresh clone → `scripts/setup-env.sh` → `docker compose up` yields a TLS-secured, real-time, multi-user Notion-style workspace. See the Success-Criteria check at the bottom of this file.
 
 ## Environment (verified 2026-06-05)
 
@@ -300,3 +302,45 @@ Single source of truth for build state. One entry per phase (and per significant
 
 **References**
 - Branch `phase-8-publishing-import-synced` → merged to `main` (local), tag `phase-8-complete`.
+
+---
+
+## Phase 9 — Polish & Self-Host Hardening
+
+**Status:** ✅ complete (2026-06-06) — built via subagents (backend/infra/web/e2e), orchestrator verified each gate.
+
+**Plan:** [`plans/phase-9-polish-hardening-plan.md`](plans/phase-9-polish-hardening-plan.md)
+
+**What was built**
+- **Favorites/recents:** `Favorite` + `RecentlyVisited` models + API (access-filtered, no IDOR); idempotent demo seed (`SEED_DEMO`).
+- **Security pass** (closing all deferred follow-ups, verified correct by review): guest-role metadata scoping (`listTree`/`searchMentionable`/`members`), `share-invite` no-downgrade, **server-side** `publishedHtml` sanitize (`sanitize-html`, defense-in-depth atop client DOMPurify), and `@Throttle` on the remaining sensitive routes (oidc/verify-email/refresh/logout/reset-confirm/presign). Authz + validation audit clean.
+- **Infra:** Caddy auto-TLS — `tls internal` (self-signed) for localhost, automatic ACME/Let's Encrypt for a real `APP_DOMAIN`; compose maps 443; `scripts/setup-env.{sh,ps1}` (strong-secret generation), `scripts/backup.sh` + `restore.sh` (pg_dump + MinIO `mc mirror`), top-level `README.md` self-hosting guide; migrations-on-boot confirmed.
+- **Web polish:** dark mode (light/dark/system via CSS-variable tokens), responsive collapsible sidebar, keyboard shortcuts (⌘K/⌘\\/⌘⇧L/⌘N/?), sidebar Favorites + Recent sections + star/unstar + record-visit.
+
+**Gate evidence** ("fresh clone → configure .env → docker compose up → working TLS-secured instance; backup + restore verified")
+- Lint + typecheck clean. Unit: api 103 + web 163 + db-engine 109 + editor 42 + sync 29 + shared/db. Integration (Testcontainers): api 14 files incl. favorites + security-hardening. E2E (Playwright, **whole suite migrated to HTTPS/wss**, `rtk proxy`): **23 passed** + 1 gated — TLS health 200 over Caddy's internal CA, HTTP→HTTPS 308 redirect, dark-mode toggle, favorite-persists, and a **backup → `docker compose down -v` → restore → data-intact** verification (DB + MinIO mirror; 34 pages + a real uploaded image recovered).
+- Clean `docker compose up` over HTTPS healthy.
+
+**Decisions / deviations**
+- Stack is now HTTPS-first; the e2e suite targets `https://localhost:8443` (self-signed → `ignoreHTTPSErrors`/`wss`).
+- Adversarial review found no critical/material; confirmed the security-pass fixes are correct and earlier phases un-regressed.
+
+**Follow-ups (deferred, cosmetic/optional)**
+- Stale "5/min" comment in `e2e/playwright.config.ts` (register is now 20/min); orphan `Favorite`/`RecentlyVisited` rows (no FK — filtered at read); guest `searchMentionable` over-fetch cap; real-domain deploy must override `S3_PUBLIC_ENDPOINT`/`APP_BASE_URL`/`CORS_ORIGIN` (README documents this); HTTP→HTTPS redirect drops the `:8443` host-port locally.
+
+**References**
+- Branch `phase-9-polish-hardening` → merged to `main` (local), tag `phase-9-complete`.
+
+---
+
+## ✅ Success Criteria (spec §10) — verified end to end
+
+A fresh clone → configure `.env` → `docker compose up` produces a TLS-secured, multi-user, real-time Notion-like workspace where a team can:
+- ✅ write collaborative documents with the full block set, live cursors, and offline-then-sync — Phases 2/3/4 (e2e: two-context merge + cursors + offline reconnect; full slash-menu block set round-trips).
+- ✅ run relational task/project databases across table, board, calendar, gallery with filters/sorts/grouping/relations/rollups/formulas/sub-items/dependencies — Phase 5 (e2e: board-by-status, calendar/filtered, rollup=150, formula, sub-item, live cell broadcast).
+- ✅ embed inline & linked databases and synced blocks — Phases 5/8 (inline `databaseView` node; synced block propagation across contexts).
+- ✅ comment (page + inline), mention, and get notified — Phase 6.
+- ✅ share/permission pages with inheritance, invite guests, publish public read-only pages — Phases 6/8 (guest scoped at API **and** sync; logged-out `/public/:slug`).
+- ✅ search, upload files/images, restore prior versions — Phase 7 (full-text via tsvector; MinIO presigned upload survives reload; snapshot restore).
+- ✅ import from / export to Markdown — Phase 8.
+- ✅ all self-hosted, single `docker compose up`, TLS, backups + restore, no external SaaS dependency — Phases 0/9.
