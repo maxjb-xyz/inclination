@@ -44,16 +44,16 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
     [pageId, updatePage],
   );
 
-  const handleSave = useCallback(
-    (doc: Record<string, unknown>) => {
-      setSaveState("saving");
-      api
-        .saveContent(pageId, doc)
-        .then(() => setSaveState("saved"))
-        .catch(() => setSaveState("idle"));
-    },
-    [pageId],
-  );
+  const handleSave = useCallback((doc: Record<string, unknown>, targetPageId: string) => {
+    setSaveState("saving");
+    // Persist to the page the edit was made in (targetPageId), NOT the page that
+    // happens to be active now — a debounced save flushed during a page switch
+    // must not write page A's content onto page B.
+    api
+      .saveContent(targetPageId, doc)
+      .then(() => setSaveState("saved"))
+      .catch(() => setSaveState("idle"));
+  }, []);
 
   if (pageQuery.isLoading || contentQuery.isLoading) {
     return <div className="page-view">Loading…</div>;

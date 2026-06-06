@@ -80,6 +80,41 @@ describe("apiClient", () => {
     expect((retryInit as RequestInit).headers).toMatchObject({ authorization: "Bearer fresh" });
   });
 
+  it("dedupes concurrent 401 refreshes into a single /auth/refresh (single-flight)", async () => {
+    const store = makeStore({ accessToken: "stale", refreshToken: "rt" });
+    let refreshCalls = 0;
+    const fetchMock = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/auth/refresh")) {
+        refreshCalls += 1;
+        // Simulate server-side refresh-token rotation with reuse detection: the
+        // refresh must only ever be presented once. A second concurrent refresh
+        // here would mean the bug is present.
+        return jsonResponse({ tokens: { accessToken: "fresh", refreshToken: "rt2" } });
+      }
+      const auth = (init?.headers as Record<string, string> | undefined)?.authorization;
+      // Any request still carrying the stale token 401s; the fresh token succeeds.
+      if (auth === "Bearer fresh") return jsonResponse({ path: u, ok: true });
+      return jsonResponse({ message: "expired" }, 401);
+    });
+    const client = createApiClient(store, fetchMock as unknown as typeof fetch);
+
+    // Fire several requests in parallel against the expired access token, the way
+    // the app loads workspaces + tree + page + content on mount.
+    const results = await Promise.all([
+      client.get<{ ok: boolean }>("/workspaces"),
+      client.get<{ ok: boolean }>("/workspaces/ws1/pages"),
+      client.get<{ ok: boolean }>("/pages/p1"),
+      client.get<{ ok: boolean }>("/pages/p1/content"),
+    ]);
+
+    // Exactly one rotation happened despite four concurrent 401s.
+    expect(refreshCalls).toBe(1);
+    // All original requests succeeded after retrying with the new token.
+    expect(results.every((r) => r.ok)).toBe(true);
+    expect(store.getTokens()).toEqual({ accessToken: "fresh", refreshToken: "rt2" });
+  });
+
   it("clears the session and throws when refresh fails", async () => {
     const store = makeStore({ accessToken: "stale", refreshToken: "rt" });
     const fetchMock = vi

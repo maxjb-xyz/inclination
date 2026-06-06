@@ -52,8 +52,14 @@ export function createApiClient(
   store: SessionStore,
   fetchImpl: typeof fetch = globalThis.fetch.bind(globalThis),
 ) {
-  /** Refreshes tokens via /auth/refresh; returns the new access token or null. */
-  async function refresh(): Promise<string | null> {
+  // Single-flight guard: when several requests 401 concurrently (parallel
+  // queries against an expired access token), they must share ONE /auth/refresh
+  // call. The server rotates refresh tokens with reuse/theft detection, so a
+  // second concurrent refresh would present an already-rotated token and get the
+  // whole session revoked. While a refresh is in flight, all callers await it.
+  let refreshInFlight: Promise<string | null> | null = null;
+
+  async function doRefresh(): Promise<string | null> {
     const tokens = store.getTokens();
     const user = store.getUser();
     if (!tokens || !user) return null;
@@ -69,6 +75,19 @@ export function createApiClient(
     const data = (await res.json()) as { tokens: Tokens };
     store.setSession(user, data.tokens);
     return data.tokens.accessToken;
+  }
+
+  /**
+   * Refreshes tokens via /auth/refresh; returns the new access token or null.
+   * Deduped so concurrent 401s trigger only a single rotation per expiry.
+   */
+  function refresh(): Promise<string | null> {
+    if (!refreshInFlight) {
+      refreshInFlight = doRefresh().finally(() => {
+        refreshInFlight = null;
+      });
+    }
+    return refreshInFlight;
   }
 
   async function send(path: string, options: RequestOptions, accessToken: string | null) {
