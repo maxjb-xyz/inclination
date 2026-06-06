@@ -38,6 +38,9 @@ importers:
       '@inclination/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@inclination/db-engine':
+        specifier: workspace:*
+        version: link:../../packages/db-engine
       '@inclination/shared':
         specifier: workspace:*
         version: link:../../packages/shared

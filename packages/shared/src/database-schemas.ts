@@ -379,6 +379,16 @@ export const setCellSchema = z.object({
 });
 export type SetCellInput = z.infer<typeof setCellSchema>;
 
+/**
+ * Body for the cell PUT endpoint, where `propertyId` is carried in the path
+ * (`PUT /rows/:rowId/cells/:propertyId`) so only the value is in the body.
+ */
+export const setCellBodySchema = z.object({
+  /** Null clears the cell. Any other JSON is validated per-type in T2. */
+  value: z.unknown(),
+});
+export type SetCellBodyInput = z.infer<typeof setCellBodySchema>;
+
 export const createRowSchema = z.object({
   /** Parent row id for a sub-item; omitted/null creates a top-level row. */
   parentRowId: id.nullable().optional(),

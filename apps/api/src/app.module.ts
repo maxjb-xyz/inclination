@@ -6,6 +6,7 @@ import { ConfigModule } from "./config/config.module";
 import { HealthController } from "./health/health.controller";
 import { HealthService } from "./health/health.service";
 import { HEALTH_PROBES } from "./health/checks";
+import { DatabasesModule } from "./databases/databases.module";
 import { MailModule } from "./mail/mail.module";
 import { PagesModule } from "./pages/pages.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -24,6 +25,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     UsersModule,
     WorkspacesModule,
     PagesModule,
+    DatabasesModule,
   ],
   controllers: [HealthController],
   providers: [
