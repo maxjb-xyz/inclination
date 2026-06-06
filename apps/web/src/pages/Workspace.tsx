@@ -5,6 +5,8 @@ import { PageView } from "./PageView";
 import { TrashView } from "./TrashView";
 import { CommandPalette } from "./CommandPalette";
 import { NotificationsBell } from "../collab/NotificationsBell";
+import { apiClient } from "../api/apiClient";
+import { createPublishingApi } from "../api/publishingApi";
 import {
   useArchivePage,
   useCreatePage,
@@ -13,6 +15,10 @@ import {
   usePageTree,
   useWorkspaces,
 } from "./queries";
+import { queryKeys } from "./queries";
+import { useQueryClient } from "@tanstack/react-query";
+
+const publishingApi = createPublishingApi(apiClient);
 
 type View = { kind: "page"; id: string } | { kind: "trash" } | { kind: "empty" };
 
@@ -56,8 +62,20 @@ function WorkspaceShell({
   const createPage = useCreatePage(workspaceId);
   const archivePage = useArchivePage(workspaceId);
   const movePage = useMovePage(workspaceId);
+  const qc = useQueryClient();
   const pages = tree.data ?? [];
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Import a Markdown file → create a page tree → refetch the sidebar tree and
+  // open the created root page.
+  const importMarkdown = useCallback(
+    async (filename: string, markdown: string): Promise<void> => {
+      const root = await publishingApi.importMarkdown(workspaceId, filename, markdown);
+      await qc.invalidateQueries({ queryKey: queryKeys.tree(workspaceId) });
+      setView({ kind: "page", id: root.id });
+    },
+    [workspaceId, qc, setView],
+  );
 
   const openPage = useCallback((id: string): void => {
     setView({ kind: "page", id });
@@ -111,6 +129,7 @@ function WorkspaceShell({
         onArchive={archive}
         onMove={move}
         onOpenTrash={() => setView({ kind: "trash" })}
+        onImport={importMarkdown}
       />
       <main className="workspace-main">
         <div className="workspace-topbar">

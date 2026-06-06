@@ -1,7 +1,7 @@
 import { HocuspocusProvider } from "@hocuspocus/provider";
 import { IndexeddbPersistence } from "y-indexeddb";
 import * as Y from "yjs";
-import { pageDocName } from "./docName";
+import { pageDocName, syncedDocName } from "./docName";
 import { buildCollabWsUrl } from "./wsUrl";
 
 /**
@@ -56,4 +56,57 @@ export function createCollabSession(options: CreateCollabSessionOptions): Collab
   };
 
   return { pageId, doc, provider, persistence, destroy };
+}
+
+/**
+ * A live collaboration session for a single synced block: its OWN Yjs document
+ * (doc-name `synced:{id}`), the Hocuspocus provider, IndexedDB persistence, and
+ * a `destroy` that tears all three down. One session exists per mounted synced
+ * block; embedding the SAME `syncedBlockId` elsewhere connects to the SAME
+ * server-side doc, so edits propagate.
+ */
+export interface SyncedSession {
+  syncedBlockId: string;
+  doc: Y.Doc;
+  provider: HocuspocusProvider;
+  persistence: IndexeddbPersistence;
+  destroy: () => void;
+}
+
+export interface CreateSyncedSessionOptions {
+  syncedBlockId: string;
+  /** Fresh access token from the auth store, sent to the sync server. */
+  token: string;
+  /** Override the resolved ws URL (defaults to {@link buildCollabWsUrl}). */
+  url?: string;
+}
+
+/**
+ * Create a collaboration session for a synced block.
+ *
+ * The document name MUST be `synced:{id}` — the sync server parses the id out of
+ * it to authorize the connection against the block's workspace. The token is the
+ * API access token. IndexedDB persistence (keyed `synced:{id}`) keeps offline
+ * edits, which merge back via Yjs on reconnect.
+ */
+export function createSyncedSession(options: CreateSyncedSessionOptions): SyncedSession {
+  const { syncedBlockId, token } = options;
+  const name = syncedDocName(syncedBlockId);
+  const url = options.url ?? buildCollabWsUrl();
+
+  const doc = new Y.Doc();
+  const persistence = new IndexeddbPersistence(name, doc);
+  const provider = new HocuspocusProvider({ url, name, token, document: doc });
+
+  let destroyed = false;
+  const destroy = (): void => {
+    // Idempotent: a node teardown and an editor unmount can both fire.
+    if (destroyed) return;
+    destroyed = true;
+    provider.destroy();
+    void persistence.destroy();
+    doc.destroy();
+  };
+
+  return { syncedBlockId, doc, provider, persistence, destroy };
 }

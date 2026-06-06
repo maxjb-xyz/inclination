@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -27,6 +27,18 @@ export interface SidebarProps {
   onArchive: (id: string) => void;
   onMove: (id: string, plan: ReturnType<typeof projectMove>) => void;
   onOpenTrash: () => void;
+  /** Import a Markdown file's text into a new page tree. */
+  onImport: (filename: string, markdown: string) => void | Promise<void>;
+}
+
+/** Read a File's text content via FileReader (portable across browsers + jsdom). */
+function readFileText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsText(file);
+  });
 }
 
 function SortableRow({
@@ -111,8 +123,21 @@ export function Sidebar({
   onArchive,
   onMove,
   onOpenTrash,
+  onImport,
 }: SidebarProps): React.ReactElement {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = e.target.files?.[0];
+    // Reset the input so re-selecting the same file fires `change` again.
+    e.target.value = "";
+    if (!file) return;
+    // Read via FileReader — portable across browsers and jsdom (whose File
+    // polyfill lacks a working `.text()` / Response-blob path).
+    const markdown = await readFileText(file);
+    await onImport(file.name, markdown);
+  }
   const tree = useMemo(() => buildTree(pages), [pages]);
   const flat = useMemo(() => flattenTree(tree, collapsed), [tree, collapsed]);
   const ids = useMemo(() => flat.map((f) => f.id), [flat]);
@@ -144,6 +169,23 @@ export function Sidebar({
         <button type="button" onClick={onCreateRoot} aria-label="New page">
           + New
         </button>
+        <button
+          type="button"
+          aria-label="Import Markdown"
+          title="Import a .md file"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          ⬆ Import
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".md,.markdown,text/markdown"
+          aria-label="Import Markdown file"
+          data-testid="import-md-input"
+          style={{ display: "none" }}
+          onChange={(e) => void handleImportFile(e)}
+        />
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>

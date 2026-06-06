@@ -107,3 +107,36 @@ export interface SnapshotContent {
   decoded: boolean;
   doc: Record<string, unknown> | null;
 }
+
+// ── Phase 8: publishing / import-export / synced blocks ─────────────
+
+/** Current publish settings for a page (`GET /pages/:id/public-share`); null if never published. */
+export interface PublicShareSettings {
+  slug: string;
+  published: boolean;
+  includeSubpages: boolean;
+  allowDuplicate: boolean;
+  title: string;
+}
+
+/** Public (logged-out) read payload from `GET /api/public/:slug`. */
+export interface PublicPage {
+  title: string;
+  html: string;
+  includeSubpages: boolean;
+  allowDuplicate: boolean;
+  subpages?: { slug: string; title: string }[];
+}
+
+/** Result of `GET /pages/:id/export/markdown`. */
+export interface MarkdownExport {
+  filename: string;
+  markdown: string;
+}
+
+/** The created page tree from `POST /workspaces/:wsId/import/markdown`. */
+export interface ImportedTree {
+  id: string;
+  title: string;
+  children: ImportedTree[];
+}

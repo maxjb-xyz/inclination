@@ -3,12 +3,22 @@ import { APP_NAME } from "@inclination/shared";
 import { AuthPanel } from "./auth/AuthPanel";
 import { useAuthStore } from "./auth/authStore";
 import { Workspace } from "./pages/Workspace";
+import { PublicPageView } from "./public/PublicPageView";
+import { publicSlugFromPath } from "./public/route";
 import { queryClient } from "./queryClient";
 import "./app.css";
 
 export function App(): React.ReactElement {
   const user = useAuthStore((s) => s.user);
   const clear = useAuthStore((s) => s.clear);
+
+  // The public page route is served WITHOUT auth — detect it before the auth
+  // gate so a logged-out visitor can read a published page. No token is sent.
+  const publicSlug =
+    typeof window !== "undefined" ? publicSlugFromPath(window.location.pathname) : null;
+  if (publicSlug) {
+    return <PublicPageView slug={publicSlug} />;
+  }
 
   if (!user) {
     return (
