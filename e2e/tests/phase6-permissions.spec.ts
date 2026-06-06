@@ -72,7 +72,7 @@ async function collabConnect(
       url: "ws://localhost:8080/collab",
     });
     let settled = false;
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined = undefined;
     const hp = new provider.HocuspocusProvider({
       websocketProvider: socket,
       name: `page:${pageId}`,
