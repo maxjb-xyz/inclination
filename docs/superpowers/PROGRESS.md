@@ -8,7 +8,7 @@ Single source of truth for build state. One entry per phase (and per significant
 - [x] **Phase 1 — Auth & workspaces**
 - [x] **Phase 2 — Page tree & single-user editor**
 - [x] **Phase 3 — Real-time collaboration**
-- [ ] **Phase 4 — Full block editor**
+- [x] **Phase 4 — Full block editor**
 - [ ] **Phase 5 — Databases (collections)**
 - [ ] **Phase 6 — Comments, sharing & permissions**
 - [ ] **Phase 7 — Search, files & version history**
@@ -153,3 +153,30 @@ Single source of truth for build state. One entry per phase (and per significant
 
 **References**
 - Branch `phase-3-realtime-collab` → merged to `main` (local), tag `phase-3-complete`.
+
+---
+
+## Phase 4 — Full Block Editor
+
+**Status:** ✅ complete (2026-06-06) — built via subagents (backend/editor/web/e2e), orchestrator verified each gate.
+
+**Plan:** [`plans/phase-4-full-block-editor-plan.md`](plans/phase-4-full-block-editor-plan.md)
+
+**What was built**
+- API: `PageReference` model + migration; `PUT /pages/:id/references` (transactional set-replace, self/cross-workspace filtered), `GET /pages/:id/backlinks` (excludes archived), `GET /workspaces/:wsId/search/mentionable` (members + pages). Authz via shared resolver + requireMember.
+- `packages/editor` (now real): `buildBlockExtensions` for the full §7 block set (paragraph, H1–H3, bullet/ordered/toggle/task lists, quote, callout, divider, columns, TOC, code+lowlight, inline code, KaTeX equation, URL-based image/file/video/bookmark/embed, table, `pageLink`+`mention` nodes), markdown input rules, `slashMenuItems` registry, `extractPageReferences`, and an http(s)-only `safeUrl` guard. Collaboration-safe (no history).
+- Web: slash menu + custom drag handle/block menu (duplicate/delete/turn-into/move); `@`-mention + `[[` page-link suggestions calling mentionable search; mention/pageLink React NodeViews with live titles + click-to-navigate; debounced reference-sync; backlinks panel.
+
+**Gate evidence** ("every block inserts via slash menu + round-trips reload/collab; page mention creates a working backlink")
+- Lint + typecheck clean. Unit: editor 26 + web 56 + api 38 + shared + db. Integration (Testcontainers): references 6 (+ regression 23 api total). E2E (Playwright, real stack, verified via `rtk proxy`): 9 total incl. phase4 — slash-menu inserts heading/list/todo/quote/callout/divider/code and they survive reload, and `[[`→target page's backlinks panel lists the source. Clean `docker compose up` healthy.
+
+**Decisions / deviations**
+- Media blocks are URL-based in Phase 4 (upload via MinIO is Phase 7); inline/linked databases → Phase 5; synced blocks → Phase 8.
+- `@hocuspocus`/Tiptap kept on v2; editor consumed by web via source-alias (runtime) + dist types (typecheck), so `web.Dockerfile` now builds all packages before web.
+- Adversarial review found a **CRITICAL stored XSS** (media/embed/file/bookmark rendered `javascript:`/`data:` URLs into href/iframe-src → token exfiltration syncing to all collaborators). Fixed with an http(s)-only allowlist at commit + render + serialization, with unit tests; re-verified (e2e 9/9). Also fixed a latent stale-workspace-id (M2) in the editor.
+
+**Follow-ups (deferred)**
+- Round-trip unit tests for the keyboard-skipped media/equation/table/columns/toc nodes (e2e covers structural blocks); CSP + iframe `sandbox` for embeds (defense beyond scheme filtering); one-time scrub of any pre-existing unsafe `src` in stored docs; order-insensitive reference-sync comparison (M3).
+
+**References**
+- Branch `phase-4-full-block-editor` → merged to `main` (local), tag `phase-4-complete`.
