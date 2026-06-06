@@ -9,6 +9,7 @@ import type {
   CreatePageInput,
   MovePageInput,
   SaveContentInput,
+  SetReferencesInput,
   UpdatePageInput,
 } from "@inclination/shared";
 import type { Page, Prisma } from "@inclination/db";
@@ -16,6 +17,7 @@ import { resolvePageAccess } from "@inclination/db";
 import { PrismaService } from "../prisma/prisma.service";
 import { WorkspacesService } from "../workspaces/workspaces.service";
 import { computeSortKey, type SortableSibling } from "./sort-key";
+import { computeReferenceDiff, filterReferenceTargets } from "./references";
 
 @Injectable()
 export class PagesService {
@@ -253,5 +255,124 @@ export class PagesService {
     });
     await this.prisma.page.update({ where: { id }, data: { editedById: userId } });
     return { doc: content.doc, updatedAt: content.updatedAt };
+  }
+
+  /**
+   * Replace the outgoing references of page `id` with the given set (spec §7).
+   * Self-references and ids that are not non-archived pages in the SAME
+   * workspace are filtered out. Runs the delete + insert in a transaction so
+   * the stored set ends up exactly matching the (filtered) desired set.
+   */
+  async setReferences(userId: string, id: string, input: SetReferencesInput) {
+    const page = await this.requirePageAccess(userId, id);
+
+    // Restrict requested ids to existing, non-archived pages in this workspace.
+    const candidates = input.pageIds.length
+      ? await this.prisma.page.findMany({
+          where: {
+            id: { in: input.pageIds },
+            workspaceId: page.workspaceId,
+            archivedAt: null,
+          },
+          select: { id: true, workspaceId: true },
+        })
+      : [];
+    const desired = filterReferenceTargets(input.pageIds, id, candidates);
+
+    const existing = await this.prisma.pageReference.findMany({
+      where: { fromPageId: id },
+      select: { toPageId: true },
+    });
+    const { toDelete, toInsert } = computeReferenceDiff(
+      existing.map((r) => r.toPageId),
+      desired,
+    );
+
+    await this.prisma.$transaction([
+      ...(toDelete.length
+        ? [
+            this.prisma.pageReference.deleteMany({
+              where: { fromPageId: id, toPageId: { in: toDelete } },
+            }),
+          ]
+        : []),
+      ...(toInsert.length
+        ? [
+            this.prisma.pageReference.createMany({
+              data: toInsert.map((toPageId) => ({ fromPageId: id, toPageId })),
+              skipDuplicates: true,
+            }),
+          ]
+        : []),
+    ]);
+
+    return { count: desired.length };
+  }
+
+  /** Pages that reference `id` (incoming), newest first, excluding archived. */
+  async backlinks(userId: string, id: string) {
+    await this.requirePageAccess(userId, id);
+    const refs = await this.prisma.pageReference.findMany({
+      where: { toPageId: id, fromPage: { archivedAt: null } },
+      orderBy: { createdAt: "desc" },
+      select: { fromPage: { select: { id: true, title: true, icon: true } } },
+    });
+    return refs.map((r) => r.fromPage);
+  }
+
+  /**
+   * Autocomplete source for `@`-mentions and page links (spec §7): matching
+   * workspace members and non-archived pages. Empty query returns recent pages
+   * plus members. Authorized to workspace members.
+   */
+  async searchMentionable(userId: string, workspaceId: string, q: string) {
+    await this.workspaces.requireMember(userId, workspaceId);
+    const term = q.trim();
+    const LIMIT = 10;
+
+    const members = await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId,
+        ...(term
+          ? {
+              user: {
+                OR: [
+                  { displayName: { contains: term, mode: "insensitive" } },
+                  { email: { contains: term, mode: "insensitive" } },
+                ],
+              },
+            }
+          : {}),
+      },
+      include: { user: true },
+      orderBy: { joinedAt: "asc" },
+      take: LIMIT,
+    });
+
+    const pages = await this.prisma.page.findMany({
+      where: {
+        workspaceId,
+        archivedAt: null,
+        ...(term ? { title: { contains: term, mode: "insensitive" } } : {}),
+      },
+      orderBy: { updatedAt: "desc" },
+      take: LIMIT,
+      select: { id: true, title: true, icon: true },
+    });
+
+    return {
+      users: members.map((m) => ({
+        kind: "user" as const,
+        id: m.userId,
+        displayName: m.user.displayName,
+        email: m.user.email,
+      })),
+      pages: pages.map((p) => ({
+        kind: "page" as const,
+        id: p.id,
+        title: p.title,
+        icon: p.icon,
+      })),
+    };
   }
 }
