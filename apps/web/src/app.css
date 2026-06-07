@@ -1415,53 +1415,61 @@ button {
 }
 .db-view--inline {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
 }
 .db-view__bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-2);
 }
 .db-view__tabs,
 .db-view__type-switch {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
   flex-wrap: wrap;
 }
 .db-tab,
 .db-typebtn {
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   background: none;
-  border-radius: 6px;
-  padding: 0.25rem 0.6rem;
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.db-tab:hover,
+.db-typebtn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .db-tab--active,
 .db-typebtn--active {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  border-color: var(--accent);
+  background: var(--bg-active);
+  color: var(--text-strong);
 }
 .db-tab__type,
 .db-col-type {
   color: var(--muted);
-  font-size: 0.7rem;
-  margin-left: 0.25rem;
-}
-.db-tab--active .db-tab__type {
-  color: #e0e7ff;
+  font-size: var(--text-xs);
+  margin-left: var(--space-1);
 }
 
 .db-view-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: flex-start;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 .db-filter,
@@ -1480,6 +1488,8 @@ button {
 
 .db-table {
   overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 .db-table table {
   border-collapse: collapse;
@@ -1487,69 +1497,129 @@ button {
 }
 .db-table th,
 .db-table td {
-  border: 1px solid var(--border);
-  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
   text-align: left;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
+}
+.db-table th:last-child,
+.db-table td:last-child {
+  border-right: none;
+}
+.db-table tr:last-child td {
+  border-bottom: none;
+}
+.db-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-subtle);
+  color: var(--muted);
+  font-weight: 500;
+  z-index: 1;
+}
+.db-table tbody tr {
+  transition: background var(--dur) var(--ease);
+}
+.db-table tbody tr:hover {
+  background: var(--bg-hover);
 }
 .db-col-header {
   border: none;
   background: none;
-  font-weight: 600;
+  color: inherit;
+  font-weight: 500;
   cursor: pointer;
+  padding: 0;
 }
 .db-cell-computed {
   color: var(--muted);
 }
-.db-add-row {
-  margin-top: 0.5rem;
-  border: 1px dashed var(--border);
+.db-add-row,
+.db-add-property {
+  margin-top: var(--space-2);
+  border: 1px dashed var(--border-strong);
   background: none;
-  border-radius: 6px;
-  padding: 0.3rem 0.6rem;
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
+  font-size: var(--text-sm);
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.db-add-row:hover,
+.db-add-property:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 .db-board {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   overflow-x: auto;
   align-items: flex-start;
+  padding-bottom: var(--space-2);
 }
 .db-board__col {
-  min-width: 200px;
-  background: var(--bg-hover);
-  border-radius: 8px;
-  padding: 0.5rem;
+  min-width: 240px;
+  width: 240px;
+  flex: none;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
 }
 .db-board__col--over {
   outline: 2px solid var(--accent);
+  outline-offset: -1px;
 }
 .db-board__col-title {
-  margin: 0 0 0.5rem;
-  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-strong);
 }
 .db-board__count {
   color: var(--muted);
+  font-weight: 400;
+  font-size: var(--text-xs);
+  background: var(--bg-hover);
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-2);
 }
 .db-card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
   cursor: grab;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.db-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 .db-card--dragging {
   opacity: 0.6;
 }
 .db-card__title {
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--text-strong);
 }
 .db-card__prop {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
+  margin-top: 2px;
 }
 
 .db-calendar__grid {
@@ -1558,70 +1628,90 @@ button {
   gap: 1px;
   background: var(--border);
   border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 .db-calendar__weekday {
-  background: var(--bg-hover);
-  padding: 0.25rem;
-  font-size: 0.75rem;
+  background: var(--bg-subtle);
+  padding: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--muted);
   text-align: center;
 }
 .db-calendar__day {
   background: var(--bg-elevated);
-  min-height: 70px;
-  padding: 0.25rem;
-  font-size: 0.78rem;
+  min-height: 84px;
+  padding: var(--space-1);
+  font-size: var(--text-xs);
 }
 .db-calendar__day--blank {
-  background: var(--bg-hover);
+  background: var(--bg-subtle);
 }
 .db-calendar__daynum {
   color: var(--muted);
 }
 .db-calendar__event {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  border-radius: 4px;
-  padding: 0.1rem 0.25rem;
-  margin-top: 0.15rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-1);
+  margin-top: 2px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .db-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
 }
 .db-gallery__card {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem;
-  font-size: 0.85rem;
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  font-size: var(--text-sm);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.db-gallery__card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 .db-gallery__cover {
   width: 100%;
-  border-radius: 6px;
-  margin-bottom: 0.4rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
 }
 .db-gallery__title {
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--text-strong);
 }
 .db-gallery__prop {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
 }
 
 .db-prop-form,
 .db-options-editor {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.6rem;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   max-width: 360px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
 }
 .db-prop-form__actions {
   display: flex;
-  gap: 0.4rem;
+  gap: var(--space-2);
 }
 .db-danger {
   color: var(--danger);
@@ -1629,9 +1719,10 @@ button {
 
 .db-node {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem;
-  margin: 0.5rem 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: var(--space-2) 0;
+  background: var(--bg-subtle);
 }
 .db-node--empty {
   text-align: center;
@@ -1639,7 +1730,7 @@ button {
 }
 .db-view__hint {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 /* ── Phase 6: sharing / comments / notifications ─────────────── */
