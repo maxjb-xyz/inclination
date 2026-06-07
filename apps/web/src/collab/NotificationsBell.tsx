@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Bell } from "lucide-react";
 import type { NotificationItem } from "../api/collabTypes";
 import {
   useMarkAllNotificationsRead,
@@ -59,7 +60,7 @@ export function NotificationsBell({ onOpenPage }: NotificationsBellProps): React
         data-testid="notifications-bell"
         onClick={() => setOpen((o) => !o)}
       >
-        🔔
+        <Bell size={17} />
         {count > 0 ? (
           <span className="notifications__badge" data-testid="notifications-badge">
             {count}
