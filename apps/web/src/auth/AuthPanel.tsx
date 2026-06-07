@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ArrowRight, Eye, EyeOff, Feather, MailCheck } from "lucide-react";
+import { Eye, EyeOff, Feather, MailCheck } from "lucide-react";
 import { APP_NAME, loginSchema, registerSchema } from "@inclination/shared";
 import { Button, Field, IconButton, Input, Segmented } from "../ui";
 import { authClient } from "./authClient";
@@ -98,7 +98,7 @@ export function RegisterForm(): React.ReactElement {
           trailing={<PasswordReveal shown={reveal} onToggle={() => setReveal((v) => !v)} />}
         />
       </Field>
-      <Button type="submit" variant="primary" block loading={busy} trailingIcon={<ArrowRight size={16} />}>
+      <Button type="submit" variant="primary" block loading={busy}>
         Create account
       </Button>
     </form>
@@ -149,13 +149,12 @@ export function LoginForm(): React.ReactElement {
           aria-label="Password"
           type={reveal ? "text" : "password"}
           autoComplete="current-password"
-          placeholder="••••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           trailing={<PasswordReveal shown={reveal} onToggle={() => setReveal((v) => !v)} />}
         />
       </Field>
-      <Button type="submit" variant="primary" block loading={busy} trailingIcon={<ArrowRight size={16} />}>
+      <Button type="submit" variant="primary" block loading={busy}>
         Sign in
       </Button>
     </form>
