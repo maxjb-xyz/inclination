@@ -119,23 +119,39 @@ APP_DOMAIN=:80
 CADDY_TLS_SNIPPET=tls_auto
 ```
 
-Then `docker compose up -d --build` and point your proxy at the **caddy container's
-port 80** (host `${CADDY_HTTP_PORT}`, default `8080`). **Forward WebSockets** — the
+Then `docker compose up -d --build`. **Forward WebSockets** at your proxy — the
 collaborative editor (`/collab`) and database realtime (`/api/realtime`) need them
-(Cloudflare Tunnel does this automatically).
+(Cloudflare Tunnel does this automatically). Point your proxy at Caddy's HTTP port —
+**where** depends on whether your proxy runs on the host or inside compose:
 
-**Turnkey Cloudflare Tunnel** (no host ports exposed at all): the
-[`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) overlay sets the
-two HTTP-only flags for you, so you set just **`PUBLIC_URL`** and
-**`CLOUDFLARE_TUNNEL_TOKEN`** in `.env`. Create a tunnel in the Cloudflare Zero
-Trust dashboard with a Public Hostname pointing at **Service `http://caddy:80`**, then:
+**A. You already run the tunnel/proxy on the host** (e.g. `cloudflared` installed as
+a service) — point it at the **published host port** `http://localhost:8080` (host
+`${CADDY_HTTP_PORT}`); it's not on the Docker network so it can't use `caddy`. No
+overlay needed. Example `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: <your-tunnel-uuid>
+credentials-file: /home/you/.cloudflared/<uuid>.json
+ingress:
+  - hostname: notes.example.com
+    service: http://localhost:8080   # Caddy's published HTTP port
+  - service: http_status:404
+```
+
+The published `:8443` HTTPS port is unused in this mode (harmless; drop the mapping
+if you prefer).
+
+**B. Turnkey Cloudflare Tunnel inside compose** (no host ports exposed at all): the
+[`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) overlay runs
+`cloudflared` for you and sets the two HTTP-only flags, so you set just **`PUBLIC_URL`**
+and **`CLOUDFLARE_TUNNEL_TOKEN`** in `.env`. Add a Public Hostname in the Cloudflare
+dashboard pointing at **Service `http://caddy:80`** (the internal network name), then:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
 ```
 
-`cloudflared` dials out to Cloudflare (no inbound ports needed); Cloudflare
-terminates TLS and forwards your hostname to Caddy over the internal network. See
+`cloudflared` dials out to Cloudflare (no inbound ports needed). See
 [`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) for the steps.
 
 > **Per-client rate limits behind a proxy:** the API throttles by client IP. Behind
