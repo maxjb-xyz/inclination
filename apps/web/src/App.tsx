@@ -28,8 +28,7 @@ export function App(): React.ReactElement {
   if (!user) {
     return (
       <main className="auth-shell">
-        <h1>{APP_NAME}</h1>
-        <p>Self-hosted, real-time-collaborative workspace.</p>
+        <div className="auth-shell__glow" aria-hidden="true" />
         <AuthPanel />
       </main>
     );

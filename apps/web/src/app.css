@@ -1,78 +1,213 @@
 /* ───────────────────────────────────────────────────────────
-   Theme tokens. `data-theme="light|dark"` is set on <html> by the
-   theme store (see src/theme). Components reference these variables
-   so dark mode works without touching component CSS.
+   Design tokens live in styles/tokens.css; primitives in ui/ui.css.
+   These @imports MUST stay first (CSS requires it). Surface styles
+   below reference the semantic color vars so theming "just works".
    ─────────────────────────────────────────────────────────── */
-:root,
-[data-theme="light"] {
-  --bg: #ffffff;
-  --bg-elevated: #ffffff; /* popovers, dialogs, cards */
-  --bg-sidebar: #fafafa;
-  --bg-subtle: #f9fafb; /* faint fills (callouts, media forms) */
-  --bg-hover: #f3f4f6;
-  --bg-active: #eff6ff; /* selected rows / active items */
-  --text: #111827;
-  --text-strong: #111827;
-  --muted: #6b7280;
-  --border: #e5e5e5;
-  --border-strong: #e2e8f0;
-  --accent: #2563eb;
-  --accent-contrast: #ffffff;
-  --accent-soft: #eef2ff;
-  --scrim: rgba(15, 23, 42, 0.35);
-  --shadow: rgba(0, 0, 0, 0.12);
-  --shadow-strong: rgba(15, 23, 42, 0.3);
-  --code-bg: #0d1117;
-  --code-fg: #e6edf3;
-  --highlight: #fef08a;
-  --danger: #b91c1c;
-  --success: #059669;
-
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
-}
-
-[data-theme="dark"] {
-  --bg: #1a1a1a;
-  --bg-elevated: #242424;
-  --bg-sidebar: #181818;
-  --bg-subtle: #202020;
-  --bg-hover: #2a2a2a;
-  --bg-active: #1e2a3f;
-  --text: #e6e6e6;
-  --text-strong: #f5f5f5;
-  --muted: #9ca3af;
-  --border: #333333;
-  --border-strong: #3a3a3a;
-  --accent: #60a5fa;
-  --accent-contrast: #0b1220;
-  --accent-soft: #1e2a4a;
-  --scrim: rgba(0, 0, 0, 0.6);
-  --shadow: rgba(0, 0, 0, 0.5);
-  --shadow-strong: rgba(0, 0, 0, 0.6);
-  --code-bg: #0d1117;
-  --code-fg: #e6edf3;
-  --highlight: #8a6d00;
-  --danger: #f87171;
-  --success: #34d399;
-}
+@import "./styles/tokens.css";
+@import "./ui/ui.css";
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
   color: var(--text);
   background: var(--bg);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+::selection {
+  background: var(--selection);
+}
+
+/* Quiet, theme-aware scrollbars (WebKit). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+  background-clip: padding-box;
+}
+
+:focus-visible {
+  outline: none;
+}
+
+/* ── Auth screen ── */
 .auth-shell {
-  padding: 2rem;
-  max-width: 480px;
-  margin: 0 auto;
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  background:
+    radial-gradient(120% 80% at 50% -10%, var(--accent-soft) 0%, transparent 55%),
+    var(--bg-sidebar);
+  overflow: hidden;
+}
+.auth-shell__glow {
+  position: absolute;
+  inset: auto;
+  top: -30vh;
+  width: 60vw;
+  height: 60vw;
+  max-width: 720px;
+  max-height: 720px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 65%);
+  filter: blur(40px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.auth__card {
+  position: relative;
+  width: min(400px, 100%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: ui-pop var(--dur-slow) var(--ease);
+}
+
+.auth__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-1);
+}
+.auth__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: var(--shadow-md);
+  margin-bottom: var(--space-1);
+}
+.auth__name {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.auth__tagline {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.auth__tabs {
+  width: 100%;
+}
+
+.auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.auth__form .ui-btn {
+  margin-top: var(--space-1);
+  height: 40px;
+}
+
+.auth__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-1);
+  padding: var(--space-4) 0;
+}
+.auth__success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+  margin-bottom: var(--space-2);
+}
+.auth__success-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.auth__success-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.auth__sso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  transition: background var(--dur) var(--ease);
+  position: relative;
+}
+.auth__sso::before {
+  content: "or";
+  position: absolute;
+  top: calc(-1 * var(--space-3) - 1px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  background: var(--bg-elevated);
+}
+.auth__sso:hover {
+  background: var(--bg-hover);
+}
+
+.auth__footer {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 .app-shell {
