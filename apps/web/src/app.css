@@ -164,69 +164,42 @@ input[type="radio"] {
   align-items: center;
   justify-content: center;
   padding: var(--space-5);
-  background:
-    radial-gradient(120% 80% at 50% -10%, var(--accent-soft) 0%, transparent 55%),
-    var(--bg-sidebar);
-  overflow: hidden;
-}
-.auth-shell__glow {
-  position: absolute;
-  inset: auto;
-  top: -30vh;
-  width: 60vw;
-  height: 60vw;
-  max-width: 720px;
-  max-height: 720px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 65%);
-  filter: blur(40px);
-  opacity: 0.5;
-  pointer-events: none;
+  background: var(--bg);
 }
 
 .auth__card {
-  position: relative;
-  width: min(400px, 100%);
+  width: min(384px, 100%);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: var(--space-6) var(--space-6) var(--space-5);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  animation: ui-pop var(--dur-slow) var(--ease);
+  gap: var(--space-5);
 }
 
 .auth__brand {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 .auth__mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-md);
-  background: var(--accent);
-  color: var(--accent-contrast);
-  box-shadow: var(--shadow-md);
-  margin-bottom: var(--space-1);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--text-strong);
+  color: var(--bg);
 }
 .auth__name {
   margin: 0;
-  font-size: var(--text-2xl);
-  font-weight: 700;
+  font-size: var(--text-xl);
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text-strong);
-}
-.auth__tagline {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--muted);
 }
 
 .auth__tabs {
@@ -308,12 +281,6 @@ input[type="radio"] {
   background: var(--bg-hover);
 }
 
-.auth__footer {
-  text-align: center;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -356,11 +323,11 @@ input[type="radio"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--text-strong);
+  color: var(--bg);
 }
 
 .app-topbar .spacer {

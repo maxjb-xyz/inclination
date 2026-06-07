@@ -55,7 +55,6 @@ export function OidcCallback(): React.ReactElement {
 
   return (
     <main className="auth-shell">
-      <div className="auth-shell__glow" aria-hidden="true" />
       <section className="auth__card">
         <header className="auth__brand">
           <span className="auth__mark" aria-hidden="true">

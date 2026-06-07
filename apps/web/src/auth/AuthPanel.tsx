@@ -168,10 +168,9 @@ export function AuthPanel(): React.ReactElement {
     <section className="auth__card">
       <header className="auth__brand">
         <span className="auth__mark" aria-hidden="true">
-          <Feather size={20} />
+          <Feather size={18} />
         </span>
         <h1 className="auth__name">{APP_NAME}</h1>
-        <p className="auth__tagline">Your self-hosted workspace</p>
       </header>
 
       <Segmented
@@ -195,8 +194,6 @@ export function AuthPanel(): React.ReactElement {
           Continue with SSO
         </a>
       ) : null}
-
-      <footer className="auth__footer">Self-hosted · open source</footer>
     </section>
   );
 }

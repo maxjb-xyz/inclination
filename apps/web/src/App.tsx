@@ -39,7 +39,6 @@ export function App(): React.ReactElement {
   if (!user) {
     return (
       <main className="auth-shell">
-        <div className="auth-shell__glow" aria-hidden="true" />
         <AuthPanel />
       </main>
     );

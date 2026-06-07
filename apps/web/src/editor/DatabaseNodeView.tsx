@@ -58,7 +58,7 @@ export function DatabaseNodeView({
       {linked ? (
         <div className="db-node__linkbar">
           <button type="button" className="db-node__open" onClick={() => openPage(databaseId)}>
-            Open source database ↗
+            Open source ↗
           </button>
         </div>
       ) : null}
