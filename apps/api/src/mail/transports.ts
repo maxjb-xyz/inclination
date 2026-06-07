@@ -24,6 +24,17 @@ export class CapturingTransport implements MailTransport {
 
   async send(message: SentMessage): Promise<void> {
     this.messages.push(message);
+    if (process.env.NODE_ENV === "test") return;
+    // SMTP_URL is not configured — print the email so devs can grab the link from logs.
+    process.stderr.write(
+      `\n[CapturingTransport] SMTP not configured — email captured (not sent):\n` +
+        `  To:      ${message.to}\n` +
+        `  Subject: ${message.subject}\n` +
+        `  Body:\n${message.text
+          .split("\n")
+          .map((l) => `    ${l}`)
+          .join("\n")}\n\n`,
+    );
   }
 
   /** Most recent message sent to an address (case-insensitive), if any. */

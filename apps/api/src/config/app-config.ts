@@ -36,6 +36,8 @@ export class AppConfig {
   // ── Mail ──
   readonly smtpUrl = envOrDefault("SMTP_URL", "");
   readonly mailFrom = envOrDefault("MAIL_FROM", "Inclination <no-reply@localhost>");
+  /** False when SMTP is unconfigured — registration auto-verifies so the app stays usable in dev. */
+  readonly emailVerificationRequired = envOrDefault("SMTP_URL", "") !== "";
 
   // ── Misc ──
   readonly nodeEnv = envOrDefault("NODE_ENV", "");

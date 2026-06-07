@@ -50,15 +50,22 @@ export class AuthService {
       data: { email: input.email, passwordHash, displayName: input.displayName },
     });
 
-    const rawToken = this.newSecret();
-    await this.prisma.emailVerificationToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: this.hash(rawToken),
-        expiresAt: new Date(Date.now() + this.config.emailTokenTtlSec * 1000),
-      },
-    });
-    await this.mail.sendVerificationEmail(user.email, rawToken);
+    if (this.config.emailVerificationRequired) {
+      const rawToken = this.newSecret();
+      await this.prisma.emailVerificationToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: this.hash(rawToken),
+          expiresAt: new Date(Date.now() + this.config.emailTokenTtlSec * 1000),
+        },
+      });
+      await this.mail.sendVerificationEmail(user.email, rawToken);
+    } else {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
+      });
+    }
     return toPublicUser(user);
   }
 

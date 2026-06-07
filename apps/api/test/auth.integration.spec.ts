@@ -6,7 +6,7 @@ import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { startMockOidc, type MockOidc } from "./support/mock-oidc";
-import { MAIL_TRANSPORT, type CapturingTransport } from "../src/mail/transports";
+import { CapturingTransport, MAIL_TRANSPORT } from "../src/mail/transports";
 
 /**
  * Phase 1 "Done when": a user can register, verify, create a workspace, invite a
@@ -45,18 +45,24 @@ describe("Auth & workspaces (integration)", () => {
     process.env.DATABASE_URL = databaseUrl;
     process.env.JWT_ACCESS_SECRET = "test-access-secret";
     process.env.APP_BASE_URL = "http://localhost:8080";
+    // Non-empty SMTP_URL keeps emailVerificationRequired=true so we exercise the full flow.
+    process.env.SMTP_URL = "smtp://test@localhost:25";
     process.env.OIDC_ISSUER = oidc.issuer;
     process.env.OIDC_CLIENT_ID = oidc.clientId;
     process.env.OIDC_CLIENT_SECRET = oidc.clientSecret;
     process.env.OIDC_REDIRECT_URI = "http://localhost:8080/api/auth/oidc/callback";
 
+    const capturing = new CapturingTransport();
     const { AppModule } = await import("../src/app.module");
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(MAIL_TRANSPORT)
+      .useValue(capturing)
+      .compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix("api");
     await app.init();
     http = app.getHttpServer();
-    mail = app.get(MAIL_TRANSPORT);
+    mail = capturing;
   }, 180_000);
 
   afterAll(async () => {
