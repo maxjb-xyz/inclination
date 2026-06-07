@@ -108,6 +108,53 @@ certificate automatically and redirects HTTP → HTTPS. Certificates persist in 
 automatic HTTPS manages a real certificate. All app routes (`/api/*`, `/collab*`,
 `/sync/*`, `/inclination/*` → MinIO, SPA fallback) are shared between both modes.
 
+### Behind your own reverse proxy (Cloudflare Tunnel, nginx, Traefik, …)
+
+If something **already terminates TLS** for you, don't make Caddy do it twice —
+run Caddy as a plain-HTTP internal router and point your proxy at it. Caddy still
+serves the SPA and routes `/api`, `/collab` (WS), `/sync`, and `/inclination`
+(MinIO presigned uploads) — your proxy can't do those itself, so this is the
+simplest split: **your edge does TLS, Caddy does routing.**
+
+Set in `.env`:
+
+```dotenv
+# Caddy serves plain HTTP on :80 — no certs, no HTTP→HTTPS redirect.
+APP_DOMAIN=:80
+CADDY_TLS_SNIPPET=tls_auto
+
+# Set these to your PUBLIC https URL (what the browser sees), so email links,
+# CORS, OIDC, and presigned-upload signatures match the real origin:
+APP_BASE_URL=https://notes.example.com
+CORS_ORIGIN=https://notes.example.com
+S3_PUBLIC_ENDPOINT=https://notes.example.com
+OIDC_REDIRECT_URI=https://notes.example.com/api/auth/oidc/callback
+```
+
+Then `docker compose up -d --build` and point your proxy at the **caddy container's
+port 80** (host `${CADDY_HTTP_PORT}`, default `8080`). **Forward WebSockets** — the
+collaborative editor (`/collab`) and database realtime (`/api/realtime`) need them
+(Cloudflare Tunnel does this automatically).
+
+**Turnkey Cloudflare Tunnel** (no host ports exposed at all): use the included
+overlay. After the `.env` settings above, create a tunnel in the Cloudflare Zero
+Trust dashboard, put its token in `.env` as `CLOUDFLARE_TUNNEL_TOKEN=…`, add a
+Public Hostname pointing at **Service `http://caddy:80`**, then:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
+```
+
+`cloudflared` dials out to Cloudflare (no inbound ports needed); Cloudflare
+terminates TLS and forwards your hostname to Caddy over the internal network. See
+[`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) for the steps.
+
+> **Per-client rate limits behind a proxy:** the API throttles by client IP. Behind
+> a tunnel/proxy all requests appear to come from the proxy, so auth rate limits
+> become effectively global. If you need precise per-client limits, configure your
+> proxy to send `X-Forwarded-For` and add a `trusted_proxies` directive to the
+> Caddyfile so the real client IP propagates. Not required for a working install.
+
 ### OIDC single sign-on (optional)
 
 Leave the `OIDC_*` variables blank to disable. To enable, register a client with
