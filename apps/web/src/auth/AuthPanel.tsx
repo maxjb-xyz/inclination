@@ -187,9 +187,14 @@ export function AuthPanel(): React.ReactElement {
 
       {mode === "login" ? <LoginForm /> : <RegisterForm />}
 
-      <a className="auth__sso" href="/api/auth/oidc/login">
-        Continue with SSO
-      </a>
+      {/* Only shown when the deploy enables OIDC (VITE_OIDC_ENABLED=true at
+          build time). A runtime probe is avoided so the auth screen never
+          fetches on mount. A full-page nav hands off to the API's OIDC start. */}
+      {import.meta.env.VITE_OIDC_ENABLED === "true" ? (
+        <a className="auth__sso" href="/api/auth/oidc/login">
+          Continue with SSO
+        </a>
+      ) : null}
 
       <footer className="auth__footer">Self-hosted · open source</footer>
     </section>

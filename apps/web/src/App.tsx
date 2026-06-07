@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Feather } from "lucide-react";
 import { APP_NAME } from "@inclination/shared";
 import { AuthPanel } from "./auth/AuthPanel";
+import { OidcCallback } from "./auth/OidcCallback";
 import { UserMenu } from "./auth/UserMenu";
 import { useAuthStore } from "./auth/authStore";
 import { Workspace } from "./pages/Workspace";
@@ -25,6 +26,14 @@ export function App(): React.ReactElement {
     typeof window !== "undefined" ? publicSlugFromPath(window.location.pathname) : null;
   if (publicSlug) {
     return <PublicPageView slug={publicSlug} />;
+  }
+
+  // OIDC return target: the API redirects here with tokens in the URL fragment
+  // after a successful SSO login. Handled before the auth gate (no token yet).
+  const isOidcCallback =
+    typeof window !== "undefined" && window.location.pathname === "/auth/oidc";
+  if (isOidcCallback) {
+    return <OidcCallback />;
   }
 
   if (!user) {
