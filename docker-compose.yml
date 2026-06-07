@@ -40,10 +40,10 @@ services:
     restart: "no"
 
   # One-shot: apply Prisma migrations, then exit. The API waits for this to succeed.
-  # Reuses the image built by the `api` service (no own build to avoid a
-  # concurrent same-tag export race in `docker compose build`).
+  # Uses the same prebuilt node image as api/sync (pulled from GHCR by default;
+  # see docker-compose.build.yml to build from source instead).
   migrate:
-    image: inclination-node:latest
+    image: ${INCLINATION_NODE_IMAGE:-ghcr.io/maxjb-xyz/inclination-node:latest}
     command: ["pnpm", "--filter", "@inclination/db", "run", "migrate:deploy"]
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -53,10 +53,7 @@ services:
     restart: "no"
 
   api:
-    image: inclination-node:latest
-    build:
-      context: .
-      dockerfile: infra/docker/node.Dockerfile
+    image: ${INCLINATION_NODE_IMAGE:-ghcr.io/maxjb-xyz/inclination-node:latest}
     restart: unless-stopped
     command: ["node", "apps/api/dist/main.js"]
     environment:
@@ -101,7 +98,7 @@ services:
       start_period: 10s
 
   sync:
-    image: inclination-node:latest
+    image: ${INCLINATION_NODE_IMAGE:-ghcr.io/maxjb-xyz/inclination-node:latest}
     restart: unless-stopped
     command: ["node", "apps/sync/dist/main.js"]
     environment:
@@ -122,10 +119,7 @@ services:
       start_period: 10s
 
   caddy:
-    build:
-      context: .
-      dockerfile: infra/docker/web.Dockerfile
-    image: inclination-web:latest
+    image: ${INCLINATION_WEB_IMAGE:-ghcr.io/maxjb-xyz/inclination-web:latest}
     restart: unless-stopped
     environment:
       # Site address Caddy serves; "localhost" for local/dev.
