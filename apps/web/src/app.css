@@ -466,8 +466,28 @@ input[type="radio"] {
 
 .workspace-loading,
 .empty-state {
-  padding: 2rem;
+  padding: var(--space-6);
   color: var(--muted);
+}
+
+/* Page loading skeleton */
+.page-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+}
+.page-skeleton__title {
+  height: 36px;
+  width: 60%;
+  border-radius: var(--radius-sm);
+}
+.page-skeleton__line {
+  height: 16px;
+  width: 100%;
+}
+.page-skeleton__line--short {
+  width: 40%;
 }
 
 .sidebar {
@@ -2923,23 +2943,55 @@ button[data-testid="publish-button"]:hover:not(:disabled) {
     display: inline-flex;
     align-items: center;
   }
-  .workspace-main {
-    padding: 1rem 1rem;
+  .page-view {
+    padding: var(--space-4) var(--space-4) var(--space-7);
+  }
+  .public-page {
+    padding: var(--space-6) var(--space-4);
+  }
+  .public-page__body {
+    font-size: var(--text-base);
   }
   .sidebar {
     position: fixed;
     top: 0;
     bottom: 0;
     left: 0;
+    width: min(280px, 84vw);
     z-index: 80;
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    box-shadow: 4px 0 16px var(--shadow);
+    transition: transform var(--dur-slow) var(--ease);
+    box-shadow: var(--shadow-lg);
   }
   .workspace.sidebar-open .sidebar {
     transform: translateX(0);
   }
   .workspace.sidebar-open .sidebar-scrim {
     display: block;
+  }
+  /* Side panels become full-width sheets on phones. */
+  .comments-panel,
+  .version-panel {
+    width: 100vw;
+    top: 0;
+  }
+  .title-input {
+    font-size: var(--text-2xl);
+  }
+}
+
+/* Smooth, subtle theme transition on the major surfaces. */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  .sidebar,
+  .app-topbar,
+  .workspace-topbar,
+  .page-action,
+  .ui-input,
+  .ui-btn--secondary {
+    transition:
+      background-color var(--dur-slow) var(--ease),
+      border-color var(--dur-slow) var(--ease),
+      color var(--dur-slow) var(--ease);
   }
 }

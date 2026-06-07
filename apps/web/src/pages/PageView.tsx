@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Globe, History, MessageSquare, Share2 } from "lucide-react";
+import { Download, FileWarning, Globe, History, MessageSquare, Share2 } from "lucide-react";
+import { EmptyState } from "../ui";
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import type { Page } from "../api/types";
 import type { BlockAnchor } from "@inclination/shared";
@@ -120,10 +121,27 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   }, [pageId]);
 
   if (pageQuery.isLoading) {
-    return <div className="page-view">Loading…</div>;
+    return (
+      <div className="page-view">
+        <div className="page-skeleton" aria-busy="true" aria-label="Loading page">
+          <span className="ui-skeleton page-skeleton__title" />
+          <span className="ui-skeleton page-skeleton__line" />
+          <span className="ui-skeleton page-skeleton__line" />
+          <span className="ui-skeleton page-skeleton__line page-skeleton__line--short" />
+        </div>
+      </div>
+    );
   }
   if (pageQuery.isError || !page) {
-    return <div className="page-view">Could not load this page.</div>;
+    return (
+      <div className="page-view">
+        <EmptyState
+          icon={<FileWarning size={22} />}
+          title="Could not load this page"
+          description="It may have been deleted, or you may not have access."
+        />
+      </div>
+    );
   }
 
   const headerActions = (
