@@ -166,6 +166,14 @@ docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --b
 `cloudflared` dials out to Cloudflare (no inbound ports needed). See
 [`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) for the steps.
 
+> **⚠️ `ERR_TOO_MANY_REDIRECTS` behind a proxy?** You set `PUBLIC_URL` but left Caddy
+> in its own-HTTPS mode (`APP_DOMAIN=localhost`/`a.domain` + `tls_internal`/`tls_auto`
+> with a hostname). In that mode Caddy redirects HTTP → HTTPS, so your TLS-terminating
+> proxy bounces between HTTP and HTTPS forever. Fix: set **`APP_DOMAIN=:80`** and
+> **`CADDY_TLS_SNIPPET=tls_auto`** (HTTP-only, no redirect), then `docker compose up -d`.
+> If you use Cloudflare's orange-cloud proxy (not a Tunnel), also set the zone's
+> **SSL/TLS mode to "Flexible"** so Cloudflare talks to the origin over HTTP.
+>
 > **Per-client rate limits behind a proxy:** the API throttles by client IP. Behind
 > a tunnel/proxy all requests appear to come from the proxy, so auth rate limits
 > become effectively global. If you need precise per-client limits, configure your
