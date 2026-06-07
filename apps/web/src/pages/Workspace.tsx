@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FileText, Keyboard, Menu, Plus, Search } from "lucide-react";
+import { Button, EmptyState } from "../ui";
 import type { projectMove } from "./projectMove";
 import { Sidebar } from "./Sidebar";
 import { PageView } from "./PageView";
@@ -202,7 +204,7 @@ function WorkspaceShell({
             aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen((o) => !o)}
           >
-            ☰
+            <Menu size={16} />
           </button>
           <button
             type="button"
@@ -210,7 +212,9 @@ function WorkspaceShell({
             data-testid="open-command-palette"
             onClick={() => setPaletteOpen(true)}
           >
-            🔍 Search… <kbd>⌘K</kbd>
+            <Search size={15} />
+            <span className="quick-switcher-trigger__label">Search…</span>
+            <kbd>⌘K</kbd>
           </button>
           <span className="spacer" />
           <button
@@ -221,7 +225,7 @@ function WorkspaceShell({
             title="Keyboard shortcuts (?)"
             onClick={() => setHelpOpen(true)}
           >
-            ?
+            <Keyboard size={16} />
           </button>
           <NotificationsBell onOpenPage={openPage} />
         </div>
@@ -230,11 +234,17 @@ function WorkspaceShell({
         ) : view.kind === "trash" ? (
           <TrashView workspaceId={workspaceId} onClose={() => setView({ kind: "empty" })} />
         ) : (
-          <div className="empty-state">
-            <p>Select a page or create a new one.</p>
-            <button type="button" onClick={createRoot}>
-              + New page
-            </button>
+          <div className="workspace-empty">
+            <EmptyState
+              icon={<FileText size={22} />}
+              title="No page open"
+              description="Select a page from the sidebar, or create a new one to start writing."
+              action={
+                <Button variant="primary" icon={<Plus size={16} />} onClick={createRoot}>
+                  New page
+                </Button>
+              }
+            />
           </div>
         )}
       </main>

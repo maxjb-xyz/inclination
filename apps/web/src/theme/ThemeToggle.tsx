@@ -1,9 +1,10 @@
+import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "./useTheme";
 
-const LABELS: Record<string, { icon: string; text: string }> = {
-  light: { icon: "☀️", text: "Light" },
-  dark: { icon: "🌙", text: "Dark" },
-  system: { icon: "🖥️", text: "System" },
+const LABELS: Record<string, { icon: React.ReactNode; text: string }> = {
+  light: { icon: <Sun size={16} />, text: "Light" },
+  dark: { icon: <Moon size={16} />, text: "Dark" },
+  system: { icon: <Monitor size={16} />, text: "System" },
 };
 
 /**
@@ -25,7 +26,9 @@ export function ThemeToggle(): React.ReactElement {
       title={`Theme: ${label.text}`}
       onClick={cycle}
     >
-      <span aria-hidden="true">{label.icon}</span>
+      <span className="theme-toggle__icon" aria-hidden="true">
+        {label.icon}
+      </span>
       <span className="theme-toggle__text">{label.text}</span>
     </button>
   );

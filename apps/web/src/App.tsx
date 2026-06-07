@@ -1,6 +1,8 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Feather } from "lucide-react";
 import { APP_NAME } from "@inclination/shared";
 import { AuthPanel } from "./auth/AuthPanel";
+import { UserMenu } from "./auth/UserMenu";
 import { useAuthStore } from "./auth/authStore";
 import { Workspace } from "./pages/Workspace";
 import { PublicPageView } from "./public/PublicPageView";
@@ -8,11 +10,11 @@ import { publicSlugFromPath } from "./public/route";
 import { queryClient } from "./queryClient";
 import { ThemeToggle } from "./theme/ThemeToggle";
 import { useTheme } from "./theme/useTheme";
+import { ToastProvider } from "./ui";
 import "./app.css";
 
 export function App(): React.ReactElement {
   const user = useAuthStore((s) => s.user);
-  const clear = useAuthStore((s) => s.clear);
   // Apply + keep the persisted theme in sync (data-theme on <html>). Runs for
   // every render path (auth screen, public page, app shell).
   useTheme();
@@ -36,16 +38,22 @@ export function App(): React.ReactElement {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="app-shell">
-        <header className="app-topbar">
-          <span className="brand">{APP_NAME}</span>
-          <span className="spacer" />
-          <ThemeToggle />
-          <span data-testid="current-user">Signed in as {user.displayName}</span>
-          <button onClick={clear}>Sign out</button>
-        </header>
-        <Workspace />
-      </div>
+      <ToastProvider>
+        <div className="app-shell">
+          <header className="app-topbar">
+            <span className="brand">
+              <span className="brand__mark" aria-hidden="true">
+                <Feather size={15} />
+              </span>
+              {APP_NAME}
+            </span>
+            <span className="spacer" />
+            <ThemeToggle />
+            <UserMenu />
+          </header>
+          <Workspace />
+        </div>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }
