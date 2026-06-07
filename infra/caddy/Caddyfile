@@ -11,6 +11,12 @@
 # {$CADDY_TLS_SNIPPET}. setup-env / compose set it to "tls_internal" for localhost
 # (which expands `tls internal`) or "tls_auto" for a real domain (a no-op, letting
 # Caddy's default automatic HTTPS take over). Both snippets are defined below.
+#
+# BEHIND YOUR OWN REVERSE PROXY (Cloudflare Tunnel, nginx, Traefik, …):
+#   set APP_DOMAIN=:80 and CADDY_TLS_SNIPPET=tls_auto. Caddy then serves the SPA
+#   + all routes over PLAIN HTTP on :80 (no certs, no HTTP->HTTPS redirect), and
+#   your external proxy terminates TLS and forwards to it. See README "Behind
+#   your own reverse proxy". Point the proxy at the caddy container's port 80.
 {
 	admin off
 	# Automatic HTTPS stays ON (the default). For a real APP_DOMAIN, Caddy obtains
