@@ -1,6 +1,9 @@
 import "katex/dist/katex.min.css";
-import "highlight.js/styles/github.css";
+// Code blocks use a dark surface (--code-bg) in both themes, so pair them with
+// the dark highlight.js theme for readable token colors.
+import "highlight.js/styles/github-dark.css";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MessageSquarePlus } from "lucide-react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
@@ -213,7 +216,8 @@ export function Editor({
                 setSelection(null);
               }}
             >
-              💬 Comment
+              <MessageSquarePlus size={15} />
+              Comment
             </button>
           ) : null}
           <EditorContent editor={editor} />

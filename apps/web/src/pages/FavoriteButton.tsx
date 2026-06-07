@@ -1,3 +1,4 @@
+import { Star } from "lucide-react";
 import { useIsFavorite, useToggleFavorite } from "./favoritesQueries";
 
 /**
@@ -26,7 +27,7 @@ export function FavoriteButton({
       title={isFavorite ? "Remove from favorites" : "Add to favorites"}
       onClick={() => toggle.mutate({ pageId, isFavorite, meta: { title, icon } })}
     >
-      {isFavorite ? "★" : "☆"}
+      <Star size={16} fill={isFavorite ? "currentColor" : "none"} />
     </button>
   );
 }

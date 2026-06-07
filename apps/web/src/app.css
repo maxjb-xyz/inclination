@@ -567,18 +567,34 @@ body {
 
 .workspace-main {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
-  padding: 1.5rem 2rem;
+}
+
+/* Centered, Notion-like document column. */
+.page-view {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-6) var(--space-8);
+}
+
+.page-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 30px;
+  margin-bottom: var(--space-4);
 }
 
 .breadcrumbs {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 2px;
   align-items: center;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--muted);
-  margin-bottom: 0.75rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .crumb {
@@ -586,6 +602,24 @@ body {
   background: none;
   cursor: pointer;
   color: var(--muted);
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.crumb:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.breadcrumbs .crumb:not(.current)::after {
+  content: "/";
+  margin-left: var(--space-1);
+  color: var(--border-strong);
 }
 
 .crumb.current {
@@ -595,50 +629,78 @@ body {
 
 .page-cover {
   width: 100%;
-  max-height: 220px;
+  max-height: 240px;
   object-fit: cover;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
 }
 
 .page-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 .icon-input {
-  width: 2.4rem;
-  font-size: 1.6rem;
+  width: 3rem;
+  font-size: var(--text-3xl);
   border: none;
+  background: transparent;
+  color: var(--text);
   text-align: center;
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.icon-input:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.icon-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .title-input {
   flex: 1;
-  font-size: 1.8rem;
+  min-width: 0;
+  font-family: var(--font-content);
+  font-size: var(--text-3xl);
   font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  background: transparent;
   border: none;
   outline: none;
+  padding: 2px 0;
+}
+.title-input::placeholder {
+  color: var(--border-strong);
 }
 
 .cover-edit input {
   width: 100%;
-  max-width: 340px;
-  font-size: 0.8rem;
-  margin: 0.5rem 0;
-  padding: 4px 6px;
+  max-width: 360px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  margin: var(--space-1) 0 var(--space-3);
+  padding: 5px var(--space-2);
+  background: transparent;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+}
+.cover-edit input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .presence-indicator {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
   color: var(--muted);
-  height: 1rem;
+  height: 1.2rem;
+  margin-bottom: var(--space-2);
 }
 
 .presence-dot {
@@ -687,18 +749,98 @@ body {
 }
 
 .editor {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
   position: relative;
 }
 
 .editor .ProseMirror {
   min-height: 300px;
   outline: none;
-  line-height: 1.6;
+  font-family: var(--font-content);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  color: var(--text);
 }
 
 .editor .ProseMirror:focus {
   outline: none;
+}
+
+/* Block rhythm */
+.editor .ProseMirror > * + * {
+  margin-top: 2px;
+}
+.editor .ProseMirror p {
+  margin: 3px 0;
+}
+.editor .ProseMirror h1,
+.editor .ProseMirror h2,
+.editor .ProseMirror h3 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+  line-height: var(--leading-tight);
+}
+.editor .ProseMirror h1 {
+  font-size: var(--text-2xl);
+  margin: var(--space-5) 0 var(--space-1);
+}
+.editor .ProseMirror h2 {
+  font-size: var(--text-xl);
+  margin: var(--space-4) 0 var(--space-1);
+}
+.editor .ProseMirror h3 {
+  font-size: var(--text-lg);
+  margin: var(--space-3) 0 var(--space-1);
+}
+.editor .ProseMirror ul,
+.editor .ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 3px 0;
+}
+.editor .ProseMirror li {
+  margin: 2px 0;
+}
+.editor .ProseMirror li::marker {
+  color: var(--muted);
+}
+.editor .ProseMirror blockquote {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--border-strong);
+  color: var(--text);
+}
+.editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--space-4) 0;
+}
+.editor .ProseMirror a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.editor .ProseMirror a:hover {
+  text-decoration-color: var(--accent);
+}
+.editor .ProseMirror strong {
+  font-weight: 650;
+  color: var(--text-strong);
+}
+.editor .ProseMirror mark {
+  background: var(--highlight);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+/* Placeholder for an empty doc (Tiptap is-empty / is-editor-empty). */
+.editor .ProseMirror p.is-editor-empty:first-child::before,
+.editor .ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--border-strong);
+  float: left;
+  height: 0;
+  pointer-events: none;
 }
 
 .trash-list {
@@ -729,11 +871,12 @@ button {
 /* Callout */
 .editor .ProseMirror [data-type="callout"] {
   display: flex;
-  gap: 0.6rem;
-  padding: 0.75rem 1rem;
-  margin: 0.5rem 0;
-  background: var(--bg-hover);
-  border-radius: 6px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-2) 0;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
 .editor .ProseMirror [data-type="callout"]::before {
@@ -771,11 +914,14 @@ button {
 .editor .ProseMirror pre {
   background: var(--code-bg);
   color: var(--code-fg);
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-2) 0;
   overflow-x: auto;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 .editor .ProseMirror code {
@@ -784,9 +930,11 @@ button {
 
 .editor .ProseMirror :not(pre) > code {
   background: var(--bg-hover);
-  border-radius: 3px;
-  padding: 0.1rem 0.3rem;
-  font-size: 0.85em;
+  color: var(--danger);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.88em;
+  font-family: var(--font-mono);
 }
 
 /* Toggle list (details) */
@@ -1400,19 +1548,42 @@ button {
 
 .page-actions {
   display: inline-flex;
-  gap: 0.4rem;
+  align-items: center;
+  gap: 2px;
   margin-left: auto;
+  flex: none;
 }
 .page-action {
-  font-size: 0.85rem;
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-elevated);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  padding: 5px var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
   cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
 }
 .page-action:hover {
   background: var(--bg-hover);
+  color: var(--text);
+}
+.page-action--primary {
+  color: var(--accent);
+}
+.page-action--primary:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+/* Collapse action labels on tight widths — icons remain. */
+@media (max-width: 900px) {
+  .page-action__label {
+    display: none;
+  }
 }
 
 /* Share dialog */
@@ -1559,21 +1730,31 @@ button {
 /* Inline comment button + composer */
 .inline-comment-button {
   position: sticky;
-  top: 0;
+  top: var(--space-2);
   z-index: 20;
-  font-size: 0.85rem;
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  padding: 5px var(--space-3);
+  border: 1px solid var(--border);
   color: var(--accent);
   background: var(--bg-elevated);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
   cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.inline-comment-button:hover {
+  background: var(--accent-soft);
 }
 .inline-comment-composer {
   border: 1px solid var(--accent);
-  border-radius: 8px;
-  padding: 0.5rem;
-  margin: 0.5rem 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: var(--space-3) 0;
+  background: var(--bg-subtle);
 }
 .inline-comment-composer__quote {
   font-style: italic;
@@ -2043,13 +2224,15 @@ button {
 
 /* Favorite (star) button in the page header */
 .favorite-button {
-  font-size: 1rem;
   line-height: 1;
   color: var(--muted);
 }
 .favorite-button.is-favorite {
   color: #f59e0b;
-  border-color: #f59e0b;
+}
+.favorite-button.is-favorite:hover {
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  color: #f59e0b;
 }
 
 /* Command-palette group header + favorites */

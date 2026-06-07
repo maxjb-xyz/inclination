@@ -1,3 +1,4 @@
+import { Link2 } from "lucide-react";
 import type { Backlink } from "../api/types";
 
 export interface BacklinksPanelProps {
@@ -23,7 +24,9 @@ export function BacklinksPanel({
   if (loading) {
     return (
       <section className="backlinks" data-testid="backlinks-panel">
-        <h2 className="backlinks__title">Linked references</h2>
+        <h2 className="backlinks__title">
+        <Link2 size={14} /> Linked references
+      </h2>
         <p className="backlinks__empty">Loading…</p>
       </section>
     );
@@ -34,7 +37,7 @@ export function BacklinksPanel({
   return (
     <section className="backlinks" data-testid="backlinks-panel">
       <h2 className="backlinks__title">
-        Linked references
+        <Link2 size={14} /> Linked references
         <span className="backlinks__count">{backlinks.length}</span>
       </h2>
       <ul className="backlinks__list">

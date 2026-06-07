@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Download, Globe, History, MessageSquare, Share2 } from "lucide-react";
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import type { Page } from "../api/types";
 import type { BlockAnchor } from "@inclination/shared";
@@ -134,7 +135,8 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
         data-testid="toggle-comments"
         onClick={() => setCommentsOpen((o) => !o)}
       >
-        💬 Comments
+        <MessageSquare size={15} />
+        <span className="page-action__label">Comments</span>
       </button>
       <button
         type="button"
@@ -142,7 +144,8 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
         data-testid="toggle-history"
         onClick={() => setHistoryOpen((o) => !o)}
       >
-        🕑 History
+        <History size={15} />
+        <span className="page-action__label">History</span>
       </button>
       <button
         type="button"
@@ -150,7 +153,8 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
         data-testid="export-markdown"
         onClick={() => void onExport()}
       >
-        ⬇ Export
+        <Download size={15} />
+        <span className="page-action__label">Export</span>
       </button>
       {canShare ? (
         <button
@@ -159,17 +163,19 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
           data-testid="open-publish"
           onClick={() => setPublishOpen(true)}
         >
-          🌐 Publish
+          <Globe size={15} />
+          <span className="page-action__label">Publish</span>
         </button>
       ) : null}
       {canShare ? (
         <button
           type="button"
-          className="page-action"
+          className="page-action page-action--primary"
           data-testid="open-share"
           onClick={() => setShareOpen(true)}
         >
-          Share
+          <Share2 size={15} />
+          <span className="page-action__label">Share</span>
         </button>
       ) : null}
     </div>
@@ -189,16 +195,19 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   if (page.type === "database") {
     return (
       <div className="page-view">
-        <nav className="breadcrumbs" aria-label="Breadcrumbs">
-          {breadcrumbs.map((b: Page) => (
-            <button key={b.id} type="button" className="crumb" onClick={() => onNavigate(b.id)}>
-              {b.icon ?? "\u{1F5C3}\u{FE0F}"} {b.title || "Untitled"}
-            </button>
-          ))}
-          <span className="crumb current">
-            {page.icon ?? "\u{1F5C3}\u{FE0F}"} {page.title || "Untitled"}
-          </span>
-        </nav>
+        <div className="page-topbar">
+          <nav className="breadcrumbs" aria-label="Breadcrumbs">
+            {breadcrumbs.map((b: Page) => (
+              <button key={b.id} type="button" className="crumb" onClick={() => onNavigate(b.id)}>
+                {b.icon ?? "\u{1F5C3}\u{FE0F}"} {b.title || "Untitled"}
+              </button>
+            ))}
+            <span className="crumb current">
+              {page.icon ?? "\u{1F5C3}\u{FE0F}"} {page.title || "Untitled"}
+            </span>
+          </nav>
+          {headerActions}
+        </div>
         <header className="page-header">
           <input
             aria-label="Page title"
@@ -209,7 +218,6 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => commitMeta({ title })}
           />
-          {headerActions}
         </header>
         <DatabaseView databaseId={page.id} workspaceId={workspaceId} />
         {historyOpen ? (
@@ -239,16 +247,19 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
 
   return (
     <div className="page-view">
-      <nav className="breadcrumbs" aria-label="Breadcrumbs">
-        {breadcrumbs.map((b: Page) => (
-          <button key={b.id} type="button" className="crumb" onClick={() => onNavigate(b.id)}>
-            {b.icon ?? "\u{1F4C4}"} {b.title || "Untitled"}
-          </button>
-        ))}
-        <span className="crumb current">
-          {page.icon ?? "\u{1F4C4}"} {page.title || "Untitled"}
-        </span>
-      </nav>
+      <div className="page-topbar">
+        <nav className="breadcrumbs" aria-label="Breadcrumbs">
+          {breadcrumbs.map((b: Page) => (
+            <button key={b.id} type="button" className="crumb" onClick={() => onNavigate(b.id)}>
+              {b.icon ?? "\u{1F4C4}"} {b.title || "Untitled"}
+            </button>
+          ))}
+          <span className="crumb current">
+            {page.icon ?? "\u{1F4C4}"} {page.title || "Untitled"}
+          </span>
+        </nav>
+        {headerActions}
+      </div>
 
       {cover ? <img className="page-cover" src={cover} alt="" /> : null}
 
@@ -271,7 +282,6 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => commitMeta({ title })}
         />
-        {headerActions}
       </header>
 
       {canWrite ? (
