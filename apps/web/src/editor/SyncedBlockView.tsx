@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Repeat2 } from "lucide-react";
 import { EditorContent, NodeViewWrapper, useEditor, type NodeViewProps } from "@tiptap/react";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
@@ -112,7 +113,7 @@ export function SyncedBlockView({
       data-synced-block-id={syncedBlockId}
     >
       <div className="synced-block__badge" contentEditable={false}>
-        🔁 Synced block
+        <Repeat2 size={13} /> Synced block
       </div>
       {ctx ? (
         <SyncedEditor
