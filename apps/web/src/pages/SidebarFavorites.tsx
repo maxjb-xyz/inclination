@@ -1,3 +1,4 @@
+import { Clock, Star } from "lucide-react";
 import { useFavorites, useRecents } from "./favoritesQueries";
 
 const DEFAULT_ICON = "\u{1F4C4}";
@@ -13,7 +14,9 @@ export function FavoritesSection({
   if (items.length === 0) return null;
   return (
     <div className="sidebar-section" data-testid="favorites-section">
-      <div className="sidebar-section__title">⭐ Favorites</div>
+      <div className="sidebar-section__title">
+        <Star size={12} /> Favorites
+      </div>
       <ul className="sidebar-section__list">
         {items.map((f) => (
           <li key={f.pageId}>
@@ -44,7 +47,9 @@ export function RecentsSection({
   if (items.length === 0) return null;
   return (
     <div className="sidebar-section" data-testid="recents-section">
-      <div className="sidebar-section__title">🕘 Recent</div>
+      <div className="sidebar-section__title">
+        <Clock size={12} /> Recent
+      </div>
       <ul className="sidebar-section__list">
         {items.map((r) => (
           <li key={r.pageId}>

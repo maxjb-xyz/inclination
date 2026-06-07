@@ -13,6 +13,14 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+  Plus,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import type { Page } from "../api/types";
 import { buildTree } from "./buildTree";
 import { flattenTree, type FlatItem } from "./flattenTree";
@@ -77,13 +85,13 @@ function SortableRow({
           aria-label={collapsed ? "Expand" : "Collapse"}
           onClick={() => onToggle(item.id)}
         >
-          {collapsed ? "▸" : "▾"}
+          {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
         </button>
       ) : (
         <span className="twisty-spacer" />
       )}
       <span className="drag-handle" {...attributes} {...listeners} aria-label="Drag" role="button">
-        {"☰"}
+        <GripVertical size={13} />
       </span>
       <button
         type="button"
@@ -100,7 +108,7 @@ function SortableRow({
         title="Add subpage"
         onClick={() => onCreateChild(item.id)}
       >
-        +
+        <Plus size={14} />
       </button>
       <button
         type="button"
@@ -109,7 +117,7 @@ function SortableRow({
         title="Move to trash"
         onClick={() => onArchive(item.id)}
       >
-        {"\u{1F5D1}"}
+        <Trash2 size={14} />
       </button>
     </li>
   );
@@ -166,18 +174,27 @@ export function Sidebar({
   return (
     <nav className="sidebar" aria-label="Pages">
       <div className="sidebar-header">
-        <strong>Pages</strong>
-        <button type="button" onClick={onCreateRoot} aria-label="New page">
-          + New
-        </button>
-        <button
-          type="button"
-          aria-label="Import Markdown"
-          title="Import a .md file"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          ⬆ Import
-        </button>
+        <strong className="sidebar-header__title">Pages</strong>
+        <span className="sidebar-header__actions">
+          <button
+            type="button"
+            className="sidebar-icon-btn"
+            onClick={onCreateRoot}
+            aria-label="New page"
+            title="New page"
+          >
+            <Plus size={15} />
+          </button>
+          <button
+            type="button"
+            className="sidebar-icon-btn"
+            aria-label="Import Markdown"
+            title="Import a .md file"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload size={15} />
+          </button>
+        </span>
         <input
           ref={fileInputRef}
           type="file"
@@ -190,6 +207,7 @@ export function Sidebar({
       </div>
       <FavoritesSection onSelect={onSelect} />
       <RecentsSection onSelect={onSelect} />
+      <div className="sidebar-section__title sidebar-section__title--standalone">Private</div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           <ul className="page-list">
@@ -209,8 +227,9 @@ export function Sidebar({
         </SortableContext>
       </DndContext>
       <div className="sidebar-footer">
-        <button type="button" onClick={onOpenTrash}>
-          {"\u{1F5D1}"} Trash
+        <button type="button" className="sidebar-footer__btn" onClick={onOpenTrash}>
+          <Trash2 size={15} />
+          <span>Trash</span>
         </button>
       </div>
     </nav>

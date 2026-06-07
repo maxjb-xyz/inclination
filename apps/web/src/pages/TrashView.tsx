@@ -1,3 +1,5 @@
+import { RotateCcw, Trash2, X } from "lucide-react";
+import { Button, EmptyState, IconButton, Spinner } from "../ui";
 import { useRestorePage, useTrash } from "./queries";
 
 export interface TrashViewProps {
@@ -12,25 +14,38 @@ export function TrashView({ workspaceId, onClose }: TrashViewProps): React.React
 
   return (
     <div className="trash-view">
-      <header className="page-header">
-        <h2>Trash</h2>
-        <button type="button" onClick={onClose}>
-          Close
-        </button>
+      <header className="trash-view__header">
+        <h2 className="trash-view__title">
+          <Trash2 size={18} /> Trash
+        </h2>
+        <IconButton label="Close" onClick={onClose}>
+          <X size={16} />
+        </IconButton>
       </header>
       {trash.isLoading ? (
-        <p>Loading…</p>
+        <div className="trash-view__loading">
+          <Spinner /> Loading…
+        </div>
       ) : pages.length === 0 ? (
-        <p>Trash is empty.</p>
+        <EmptyState
+          icon={<Trash2 size={22} />}
+          title="Trash is empty"
+          description="Pages you delete will appear here, ready to restore."
+        />
       ) : (
         <ul className="trash-list">
           {pages.map((p) => (
             <li key={p.id} data-testid="trash-row">
               <span className="page-icon">{p.icon ?? "\u{1F4C4}"}</span>
               <span className="page-title">{p.title || "Untitled"}</span>
-              <button type="button" onClick={() => restore.mutate(p.id)} aria-label="Restore page">
+              <Button
+                size="sm"
+                icon={<RotateCcw size={14} />}
+                onClick={() => restore.mutate(p.id)}
+                aria-label="Restore page"
+              >
                 Restore
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
