@@ -783,6 +783,31 @@ input[type="radio"] {
   outline: none;
   border-color: var(--accent);
 }
+.cover-add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding: 4px var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+.page-view:hover .cover-add {
+  opacity: 1;
+}
+.cover-add:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 
 .presence-indicator {
   display: flex;

@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileWarning, Globe, History, MessageSquare, Share2 } from "lucide-react";
+import {
+  Download,
+  FileWarning,
+  Globe,
+  History,
+  Image as ImageIcon,
+  MessageSquare,
+  Share2,
+} from "lucide-react";
 import { EmptyState } from "../ui";
 import type { Editor as TiptapEditor } from "@tiptap/core";
 import type { Page } from "../api/types";
@@ -63,6 +71,7 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
   const [title, setTitle] = useState("");
   const [icon, setIcon] = useState("");
   const [cover, setCover] = useState("");
+  const [coverEditing, setCoverEditing] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -304,13 +313,27 @@ export function PageView({ workspaceId, pageId, onNavigate }: PageViewProps): Re
 
       {canWrite ? (
         <div className="cover-edit">
-          <input
-            aria-label="Cover URL"
-            placeholder="Cover image URL"
-            value={cover}
-            onChange={(e) => setCover(e.target.value)}
-            onBlur={() => commitMeta({ cover: cover || null })}
-          />
+          {cover || coverEditing ? (
+            <input
+              aria-label="Cover URL"
+              placeholder="Paste an image URL…"
+              autoFocus={coverEditing && !cover}
+              value={cover}
+              onChange={(e) => setCover(e.target.value)}
+              onBlur={() => {
+                commitMeta({ cover: cover || null });
+                setCoverEditing(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className="cover-add"
+              onClick={() => setCoverEditing(true)}
+            >
+              <ImageIcon size={14} /> Add cover
+            </button>
+          )}
         </div>
       ) : null}
 
