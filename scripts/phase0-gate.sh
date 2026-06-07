@@ -14,7 +14,7 @@ BASE="http://localhost:${PORT}"
 
 cleanup() {
   echo "--- tearing down ---"
-  docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+  docker compose -f docker-compose.yml -f docker-compose.build.yml down -v --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -25,7 +25,8 @@ if ! grep -q '^JWT_ACCESS_SECRET=.\+' .env; then
 fi
 
 echo "=== building + starting stack ==="
-docker compose up -d --build
+# Build the images from source (the base compose pulls prebuilt GHCR images).
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 echo "=== waiting for api + sync to report healthy ==="
 deadline=$(( $(date +%s) + 180 ))
@@ -38,7 +39,7 @@ while true; do
   fi
   if [ "$(date +%s)" -ge "$deadline" ]; then
     echo "TIMED OUT waiting for healthy services"
-    docker compose ps
+    docker compose -f docker-compose.yml -f docker-compose.build.yml ps
     exit 1
   fi
   sleep 3

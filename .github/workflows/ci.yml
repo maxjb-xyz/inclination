@@ -69,7 +69,7 @@ jobs:
         run: |
           cp .env.example .env
           echo "JWT_ACCESS_SECRET=$(openssl rand -base64 48)" >> .env
-          docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+          docker compose -f docker-compose.yml -f docker-compose.build.yml -f docker-compose.e2e.yml up -d --build
       - name: Wait for healthy services
         run: |
           for i in $(seq 1 60); do
@@ -86,4 +86,4 @@ jobs:
         run: pnpm --filter @inclination/e2e run test
       - name: Tear down
         if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v
+        run: docker compose -f docker-compose.yml -f docker-compose.build.yml -f docker-compose.e2e.yml down -v

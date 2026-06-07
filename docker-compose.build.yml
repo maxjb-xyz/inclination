@@ -1,0 +1,33 @@
+# Build-from-source overlay.
+#
+# The base docker-compose.yml PULLS prebuilt images (ghcr.io/.../inclination-node
+# and -web) so end users never build. This overlay adds the `build:` sections so
+# developers, forks, and CI can build the images locally from the working tree:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# `api` builds the node image and `caddy` builds the web image; the one-shot
+# `migrate` and the `sync` service reuse the locally-built node image (pull_policy
+# "never" so they never try to fetch it from a registry). The image NAME stays
+# whatever ${INCLINATION_NODE_IMAGE}/${INCLINATION_WEB_IMAGE} resolve to (the GHCR
+# default, or your override), so the locally-built tag matches what the other
+# services reference.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/node.Dockerfile
+    pull_policy: build
+
+  sync:
+    pull_policy: never
+
+  migrate:
+    pull_policy: never
+
+  caddy:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    pull_policy: build

@@ -34,16 +34,28 @@ cd inclination
 ./scripts/setup-env.sh            # Linux/macOS
 #   pwsh scripts/setup-env.ps1    # Windows
 
-# 2. Build and start the stack.
-docker compose up -d --build
+# 2. Start the stack — pulls prebuilt images from GHCR (no local build).
+docker compose up -d
 
 # 3. Open the app (accept the self-signed certificate the first time).
 #    https://localhost:8443
 ```
 
-On first boot the one-shot `migrate` service applies the database schema and the
-`createbuckets` service creates the MinIO bucket; the `api` and `sync` services
-wait for those to finish before reporting healthy.
+The base `docker-compose.yml` pulls prebuilt images
+(`ghcr.io/<owner>/inclination-node` and `-web`, published by the
+[release workflow](.github/workflows/release.yml) on each version tag), so you
+**don't build anything**. On first boot the one-shot `migrate` service applies the
+database schema and `createbuckets` creates the MinIO bucket; `api` and `sync` wait
+for those before reporting healthy.
+
+> **Build from source instead** (developing, or running an untagged checkout): add
+> the build overlay so the images are built locally from the working tree:
+> ```bash
+> docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+> ```
+> To pin a specific published version instead of `latest`, set
+> `INCLINATION_NODE_IMAGE` / `INCLINATION_WEB_IMAGE` in `.env` (e.g.
+> `…/inclination-node:v1.2.0`).
 
 > **Self-signed cert:** by default `CADDY_TLS_SNIPPET=tls_internal`, so Caddy serves
 > a certificate from its own internal CA. Your browser will warn once — accept it
