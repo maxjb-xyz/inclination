@@ -72,30 +72,25 @@ Key variables (see `.env.example` for the full annotated list):
 
 | Variable | Purpose |
 | --- | --- |
-| `APP_DOMAIN` | Hostname Caddy serves. `localhost` for local; your domain for public. |
-| `CADDY_TLS_SNIPPET` | `tls_internal` (self-signed) or `tls_auto` (Let's Encrypt). |
+| **`PUBLIC_URL`** | **The one URL you set.** Public origin the browser uses (`https://notes.example.com`). `docker-compose.yml` derives the API base URL, CORS origin, OIDC redirect, and presigned-upload signing host from it. |
+| `APP_DOMAIN` | Address Caddy listens on for TLS: a hostname (auto-HTTPS), `localhost` (self-signed), or `:80` (plain HTTP behind your own proxy). |
+| `CADDY_TLS_SNIPPET` | `tls_internal` (self-signed) or `tls_auto` (Let's Encrypt / off). |
 | `ACME_EMAIL` | Contact email for Let's Encrypt (used only with `tls_auto`). |
-| `CADDY_HTTPS_PORT` | Host port mapped to Caddy `:443` (default `8443`). |
-| `CADDY_HTTP_PORT` | Host port mapped to Caddy `:80` (ACME challenge + HTTP→HTTPS redirect). |
-| `APP_BASE_URL` / `CORS_ORIGIN` | Public origin the SPA is reached at (used for email links + CORS). |
-| `S3_PUBLIC_ENDPOINT` | Browser-reachable origin presigned upload/download URLs are signed against. |
+| `CADDY_HTTPS_PORT` / `CADDY_HTTP_PORT` | Host ports mapped to Caddy `:443` / `:80`. |
 
 ### Configuring a real domain (automatic HTTPS)
 
 Point DNS for e.g. `notes.example.com` at the host, ensure ports 80/443 are open,
-then set in `.env`:
+then set in `.env` — your domain appears just twice (once as the full URL, once as
+the bare host Caddy gets a cert for):
 
 ```dotenv
+PUBLIC_URL=https://notes.example.com
 APP_DOMAIN=notes.example.com
 CADDY_TLS_SNIPPET=tls_auto
 ACME_EMAIL=you@example.com
 CADDY_HTTPS_PORT=443
 CADDY_HTTP_PORT=80
-
-APP_BASE_URL=https://notes.example.com
-CORS_ORIGIN=https://notes.example.com
-S3_PUBLIC_ENDPOINT=https://notes.example.com
-OIDC_REDIRECT_URI=https://notes.example.com/api/auth/oidc/callback
 ```
 
 Then `docker compose up -d --build`. Caddy obtains and renews a publicly-trusted
@@ -116,19 +111,12 @@ serves the SPA and routes `/api`, `/collab` (WS), `/sync`, and `/inclination`
 (MinIO presigned uploads) — your proxy can't do those itself, so this is the
 simplest split: **your edge does TLS, Caddy does routing.**
 
-Set in `.env`:
+Set in `.env` (the public URL plus two flags that put Caddy in HTTP-only mode):
 
 ```dotenv
-# Caddy serves plain HTTP on :80 — no certs, no HTTP→HTTPS redirect.
+PUBLIC_URL=https://notes.example.com
 APP_DOMAIN=:80
 CADDY_TLS_SNIPPET=tls_auto
-
-# Set these to your PUBLIC https URL (what the browser sees), so email links,
-# CORS, OIDC, and presigned-upload signatures match the real origin:
-APP_BASE_URL=https://notes.example.com
-CORS_ORIGIN=https://notes.example.com
-S3_PUBLIC_ENDPOINT=https://notes.example.com
-OIDC_REDIRECT_URI=https://notes.example.com/api/auth/oidc/callback
 ```
 
 Then `docker compose up -d --build` and point your proxy at the **caddy container's
@@ -136,10 +124,11 @@ port 80** (host `${CADDY_HTTP_PORT}`, default `8080`). **Forward WebSockets** �
 collaborative editor (`/collab`) and database realtime (`/api/realtime`) need them
 (Cloudflare Tunnel does this automatically).
 
-**Turnkey Cloudflare Tunnel** (no host ports exposed at all): use the included
-overlay. After the `.env` settings above, create a tunnel in the Cloudflare Zero
-Trust dashboard, put its token in `.env` as `CLOUDFLARE_TUNNEL_TOKEN=…`, add a
-Public Hostname pointing at **Service `http://caddy:80`**, then:
+**Turnkey Cloudflare Tunnel** (no host ports exposed at all): the
+[`docker-compose.cloudflared.yml`](docker-compose.cloudflared.yml) overlay sets the
+two HTTP-only flags for you, so you set just **`PUBLIC_URL`** and
+**`CLOUDFLARE_TUNNEL_TOKEN`** in `.env`. Create a tunnel in the Cloudflare Zero
+Trust dashboard with a Public Hostname pointing at **Service `http://caddy:80`**, then:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build

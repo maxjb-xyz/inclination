@@ -4,24 +4,29 @@
 # the tunnel makes an OUTBOUND connection to Cloudflare, which terminates TLS at
 # the edge and forwards your public hostname to Caddy over the internal network.
 #
+# This overlay flips Caddy to plain-HTTP mode for you, so in .env you only set
+# TWO things: PUBLIC_URL (your https origin) and CLOUDFLARE_TUNNEL_TOKEN.
+#
 # Setup (one time):
-#   1. In .env, enable the plain-HTTP "behind a reverse proxy" preset:
-#        APP_DOMAIN=:80
-#        CADDY_TLS_SNIPPET=tls_auto
-#      and set APP_BASE_URL / CORS_ORIGIN / S3_PUBLIC_ENDPOINT / OIDC_REDIRECT_URI
-#      to your public URL, e.g. https://notes.example.com
-#   2. Create a tunnel in the Cloudflare Zero Trust dashboard (Networks → Tunnels),
-#      copy its token into .env as CLOUDFLARE_TUNNEL_TOKEN=...
-#   3. In that tunnel, add a Public Hostname:
-#        Hostname: notes.example.com   Service: http://caddy:80
+#   1. In .env, set:
+#        PUBLIC_URL=https://notes.example.com
+#        CLOUDFLARE_TUNNEL_TOKEN=...   (from the Cloudflare Zero Trust dashboard)
+#   2. Create a tunnel (Cloudflare Zero Trust → Networks → Tunnels) and add a
+#      Public Hostname:  notes.example.com  →  Service: http://caddy:80
 #      (WebSockets are forwarded automatically — /collab and /api/realtime work.)
-#   4. Run:
+#   3. Run:
 #        docker compose -f docker-compose.yml -f docker-compose.cloudflared.yml up -d --build
 #
-# You can drop the caddy host port mappings entirely in this mode (nothing needs
-# to be publicly reachable except via the tunnel); they're harmless if left.
+# Nothing needs to be publicly reachable except via the tunnel (cloudflared dials
+# OUT to Cloudflare); the caddy host port mappings are unused here but harmless.
 
 services:
+  # Run Caddy as a plain-HTTP internal router (the proxy terminates TLS).
+  caddy:
+    environment:
+      APP_DOMAIN: ":80"
+      CADDY_TLS_SNIPPET: tls_auto
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
